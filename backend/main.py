@@ -2,7 +2,8 @@ from services.trip_service import (
     calculate_daily_budget,
     get_trip_category,
     get_recommended_place,
-    get_transportation_recommendation
+    get_transportation_recommendation,
+    get_season
 )
 
 
@@ -35,6 +36,9 @@ def main():
     # Determine trip category
     category = get_trip_category(budget)
 
+    #homework
+    season = get_season(travel_month)
+
     # Get transportation recommendation
     transportation = get_transportation_recommendation(category)
 
@@ -55,6 +59,7 @@ def main():
     print(f"Category         : {category}")
     print(f"Daily Budget     : {daily:.2f} {currency}/day")
     print(f"Transportation   : {transportation}")
+    print(f"Season           : {season}")
 
     print("\nRecommended Places:")
 
