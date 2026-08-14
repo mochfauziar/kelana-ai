@@ -1,71 +1,52 @@
+from fastapi import  FastAPI
+from pydantic import BaseModel
 from services.trip_service import (
     calculate_daily_budget,
     get_trip_category,
-    get_recommended_place,
-    get_transportation_recommendation,
-    get_season
+    get_transportation_recommendation
 )
 
 
-def print_trip_summary(destination, country, days, budget, currency, travel_month):
-    print("========================")
-    print("KelanaAI")
-    print("========================")
-    print(f"Destination      : {destination}")
-    print(f"Country          : {country}")
-    print(f"Days             : {days}")
-    print(f"Budget           : {budget:.2f} {currency}")
-    print(f"Currency         : {currency}")
-    print(f"Travel Month     : {travel_month}")
 
+app = FastAPI()
 
-def main():
-    print("Welcome to KelanaAI!")
-    print("Please enter your trip information.\n")
+# a Get endpoint at the root path
 
-    destination = input("Destination: ")
-    country = input("Country: ")
-    days = int(input("Days: "))
-    budget = float(input("Budget: "))
-    currency = input("Currency: ")
-    travel_month = input("Travel Month: ")
+@app.get("/")
+def home():
+    return{
+        "message":"Welcome to KelanaAI",
+        "name":"Moch Fauzi"
+    }
+# a Get Health endpoint at the root path
+@app.get("/health")
+def home():
+    return{
+        "status":"OK"
+    }
 
-    # Calculate daily budget
-    daily = calculate_daily_budget(budget, days)
+class TripRequest(BaseModel):
+    destination: str
+    days: int
+    budget: float
 
-    # Determine trip category
-    category = get_trip_category(budget)
-
-    #homework
-    season = get_season(travel_month)
-
-    # Get transportation recommendation
-    transportation = get_transportation_recommendation(category)
-
-    # Get recommended places
-    recommendation_places = get_recommended_place(destination)
-
-    print()
-
-    print_trip_summary(
-        destination,
-        country,
-        days,
-        budget,
-        currency,
-        travel_month
+# a Post at the root path
+@app.post("/api/v1/trips")
+def create_trip(request: TripRequest):
+    daily_budget = calculate_daily_budget(
+        request.budget, request.days
     )
+    category = get_trip_category(
+        request.budget
+    )
+    transportation = get_transportation_recommendation(
+        category
+    )
+    return {
+        "destination": request.destination,
+        "budget": request.budget,
+        "daily_budget": daily_budget,
+        "category": category,
+        "recommendation_transportation": transportation
+    }
 
-    print(f"Category         : {category}")
-    print(f"Daily Budget     : {daily:.2f} {currency}/day")
-    print(f"Transportation   : {transportation}")
-    print(f"Season           : {season}")
-
-    print("\nRecommended Places:")
-
-    for place in recommendation_places:
-        print(f" - {place}")
-
-
-if __name__ == "__main__":
-    main()
