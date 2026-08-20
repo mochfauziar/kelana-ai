@@ -80,3 +80,53 @@ def get_trip(trip_id: int):
     if trip is None:
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
     return trip
+
+
+class TripUpdateRequest(BaseModel):
+    destination: str | None = None
+    days: int | None = None
+    budget: float | None = None
+
+
+# PUT /api/v1/trips/{trip_id} — update trip by id
+@app.put("/api/v1/trips/{trip_id}")
+def update_trip(trip_id: int, request: TripUpdateRequest):
+    db = SessionLocal()
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+
+    if trip is None:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+
+    # update field yang dikirim saja, field lain tetap
+    if request.destination is not None:
+        trip.destination = request.destination
+    if request.days is not None:
+        trip.days = request.days
+    if request.budget is not None:
+        trip.budget = request.budget
+
+    # recalculate derived fields
+    trip.daily_budget = calculate_daily_budget(trip.budget, trip.days)
+    trip.category     = get_trip_category(trip.budget)
+
+    db.commit()
+    db.refresh(trip)
+    db.close()
+    return trip
+
+
+# DELETE /api/v1/trips/{trip_id} — hapus trip by id
+@app.delete("/api/v1/trips/{trip_id}")
+def delete_trip(trip_id: int):
+    db = SessionLocal()
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+
+    if trip is None:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+
+    db.delete(trip)
+    db.commit()
+    db.close()
+    return {"message": f"Trip with id {trip_id} deleted successfully"}
