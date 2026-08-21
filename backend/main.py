@@ -7,6 +7,7 @@ from services.trip_service import (
     get_trip_category,
     get_transportation_recommendation,
 )
+from services.bedrock_service import get_travel_recommendation
 
 app = FastAPI()
 
@@ -29,6 +30,7 @@ class TripRequest(BaseModel):
     destination: str
     days: int
     budget: float
+    travel_style: str = "Standard"
 
 
 # POST /api/v1/trips — buat trip baru dan simpan ke DB
@@ -38,12 +40,24 @@ def create_trip(request: TripRequest):
     category       = get_trip_category(request.budget)
     transportation = get_transportation_recommendation(category)
 
+    # get AI recommendation from Bedrock
+    try:
+        ai_recommendation = get_travel_recommendation(
+            days         = request.days,
+            destination  = request.destination,
+            budget       = request.budget,
+            travel_style = request.travel_style,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
     trip = Trip(
-        destination  = request.destination,
-        days         = request.days,
-        budget       = request.budget,
-        category     = category,
-        daily_budget = daily_budget,
+        destination       = request.destination,
+        days              = request.days,
+        budget            = request.budget,
+        category          = category,
+        daily_budget      = daily_budget,
+        ai_recommendation = ai_recommendation,
     )
 
     db = SessionLocal()
@@ -59,6 +73,7 @@ def create_trip(request: TripRequest):
         "daily_budget":                  trip.daily_budget,
         "category":                      trip.category,
         "recommendation_transportation": transportation,
+        "ai_recommendation":             trip.ai_recommendation,
     }
 
 
@@ -114,6 +129,37 @@ def update_trip(trip_id: int, request: TripUpdateRequest):
     db.refresh(trip)
     db.close()
     return trip
+
+
+class RecommendationRequest(BaseModel):
+    destination: str
+    days: int
+    budget: float
+    travel_style: str
+
+
+# POST /api/v1/trips/recommend — get AI travel recommendation
+@app.post("/api/v1/trips/recommend")
+def recommend_trip(request: RecommendationRequest):
+    category = get_trip_category(request.budget)
+    try:
+        recommendation = get_travel_recommendation(
+            days=request.days,
+            destination=request.destination,
+            budget=request.budget,
+            travel_style=request.travel_style,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {
+        "destination":      request.destination,
+        "days":             request.days,
+        "budget":           request.budget,
+        "travel_style":     request.travel_style,
+        "category":         category,
+        "recommendation":   recommendation,
+    }
 
 
 # DELETE /api/v1/trips/{trip_id} — hapus trip by id

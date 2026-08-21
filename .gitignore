@@ -1,0 +1,20 @@
+# Python virtual environment
+backend/.venv/
+backend/venv/
+
+# Environment variables / secrets
+backend/.env
+.env
+
+# Python cache
+backend/__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Python package/build files
+*.egg-info/
+build/
+dist/
+
+# Dependency files
+# JANGAN ignore requirements.txt
