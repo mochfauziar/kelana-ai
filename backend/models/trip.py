@@ -12,4 +12,5 @@ class Trip(Base):
     budget: Column[float]     = Column(Float, nullable=False)
     category: Column[str]     = Column(String, nullable=False)
     daily_budget: Column[float] = Column(Float, nullable=False)
-    ai_recommendation: Column[str]   = Column(Text, nullable=True)
+    ai_recommendation: Column[str]        = Column(Text, nullable=True)
+    local_food_recommendation: Column[str] = Column(Text, nullable=True)

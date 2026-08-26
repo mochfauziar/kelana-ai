@@ -49,6 +49,16 @@ Format your response in Markdown using:
 Provide a practical and well-structured itinerary for each day, including
 recommended activities, places to visit, and estimated costs where appropriate."""
 
+FOOD_PROMPT_TEMPLATE = """You are a local food expert and culinary travel guide.
+Recommend must-try local foods and dishes for a traveller visiting {destination}.
+Travel Style: {travel_style}
+Budget: USD {budget} total for {days} days
+
+Provide exactly 5 to 8 local food recommendations. For each item use this format:
+**[Food Name]** — [one sentence description of the dish and where/how it is typically served]. Estimated cost: [price range in USD].
+
+After the list, add a short paragraph (2-3 sentences) titled **Dining Tips** with practical advice for eating like a local."""
+
 
 # ---------------------------------------------------------------------------
 # Client initialisation
@@ -114,6 +124,78 @@ def get_travel_recommendation(
         ],
         "inferenceConfig": {
             "maxTokens": 2048,
+            "temperature": 0.7,
+            "topP": 0.9,
+        },
+    }
+
+    try:
+        response = requests.post(
+            url     = BEDROCK_ENDPOINT,
+            headers = get_bedrock_headers(),
+            json    = payload,
+            timeout = 60,
+        )
+        response.raise_for_status()
+
+        data           = response.json()
+        output_message = data["output"]["message"]
+        recommendation = " ".join(
+            block["text"]
+            for block in output_message["content"]
+            if "text" in block
+        )
+        return recommendation.strip()
+
+    except requests.HTTPError as exc:
+        raise RuntimeError(
+            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+
+
+def get_food_recommendation(
+    destination: str,
+    days: int,
+    budget: float,
+    travel_style: str,
+) -> str:
+    """
+    Send a local food recommendation request to AWS Bedrock and return
+    the AI-generated food guide as a string.
+
+    Parameters
+    ----------
+    destination   : Travel destination (e.g. "Bali, Indonesia").
+    days          : Number of travel days.
+    budget        : Total budget in USD.
+    travel_style  : Style of travel (e.g. "Backpacker", "Luxury").
+
+    Returns
+    -------
+    str : The AI-generated food recommendation text.
+
+    Raises
+    ------
+    RuntimeError  : If the Bedrock API call fails.
+    """
+    prompt = FOOD_PROMPT_TEMPLATE.format(
+        destination=destination,
+        days=days,
+        budget=budget,
+        travel_style=travel_style,
+    )
+
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"text": prompt}],
+            }
+        ],
+        "inferenceConfig": {
+            "maxTokens": 1024,
             "temperature": 0.7,
             "topP": 0.9,
         },

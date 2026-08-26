@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from models.trip import Trip
 from database import SessionLocal, init_db
@@ -7,9 +8,17 @@ from services.trip_service import (
     get_trip_category,
     get_transportation_recommendation,
 )
-from services.bedrock_service import get_travel_recommendation
+from services.bedrock_service import get_travel_recommendation, get_food_recommendation
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 init_db()
 
@@ -48,16 +57,23 @@ def create_trip(request: TripRequest):
             budget       = request.budget,
             travel_style = request.travel_style,
         )
+        local_food_recommendation = get_food_recommendation(
+            destination  = request.destination,
+            days         = request.days,
+            budget       = request.budget,
+            travel_style = request.travel_style,
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
     trip = Trip(
-        destination       = request.destination,
-        days              = request.days,
-        budget            = request.budget,
-        category          = category,
-        daily_budget      = daily_budget,
-        ai_recommendation = ai_recommendation,
+        destination               = request.destination,
+        days                      = request.days,
+        budget                    = request.budget,
+        category                  = category,
+        daily_budget              = daily_budget,
+        ai_recommendation         = ai_recommendation,
+        local_food_recommendation = local_food_recommendation,
     )
 
     db = SessionLocal()
@@ -74,6 +90,7 @@ def create_trip(request: TripRequest):
         "category":                      trip.category,
         "recommendation_transportation": transportation,
         "ai_recommendation":             trip.ai_recommendation,
+        "local_food_recommendation":     trip.local_food_recommendation,
     }
 
 
