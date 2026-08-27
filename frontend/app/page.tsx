@@ -3,21 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createTrip, type TripRequest, type TripResult } from "@/services/tripServices";
+import DaysCard from "@/components/DaysCard";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TRAVEL_STYLES = ["Budget", "Standard", "Comfort", "Luxury"];
+const TRAVEL_STYLES = ["Budget", "Standard", "Comfort", "Luxury", "Family"];
 
 const INITIAL_FORM: TripRequest = {
-  destination: "",
-  days: 5,
-  budget: 1000,
+  destination:  "",
+  days:         5,
+  budget:       1000,
   travel_style: "Standard",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatCurrency(value: number): string {
+function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -46,24 +47,19 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-/** Pulsing skeleton block */
 function Skeleton({ className }: { className?: string }) {
   return (
     <div className={`animate-pulse rounded-xl bg-neutral-800 ${className ?? ""}`} />
   );
 }
 
-/** Full-screen loading overlay shown while waiting for the AI */
 function LoadingOverlay({ destination }: { destination: string }) {
   return (
     <div className="fixed inset-0 z-50 bg-neutral-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-6 px-4">
-      {/* Spinner */}
       <div className="relative h-14 w-14">
         <div className="absolute inset-0 rounded-full border-2 border-neutral-800" />
         <div className="absolute inset-0 rounded-full border-2 border-t-emerald-400 animate-spin" />
       </div>
-
-      {/* Text */}
       <div className="text-center">
         <p className="text-base font-semibold text-white">
           Planning your trip to{" "}
@@ -73,13 +69,9 @@ function LoadingOverlay({ destination }: { destination: string }) {
           AI is crafting your personalised itinerary. This may take a moment.
         </p>
       </div>
-
-      {/* Skeleton preview — gives a sense of what's loading */}
       <div className="w-full max-w-2xl mt-4 flex flex-col gap-3 opacity-40">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-16" />
-          ))}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Skeleton className="h-14" />
@@ -95,14 +87,12 @@ function LoadingOverlay({ destination }: { destination: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [form, setForm] = useState<TripRequest>(INITIAL_FORM);
-  const [result, setResult] = useState<TripResult | null>(null);
+  const [form, setForm]       = useState<TripRequest>(INITIAL_FORM);
+  const [result, setResult]   = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
@@ -115,7 +105,6 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
-
     try {
       const data = await createTrip(form);
       setResult(data);
@@ -134,11 +123,10 @@ export default function Home() {
 
   return (
     <>
-      {/* Loading overlay — rendered above everything when loading */}
       {loading && <LoadingOverlay destination={form.destination} />}
 
       <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
-        {/* ── Header ── */}
+        {/* Header */}
         <header className="border-b border-neutral-900 px-6 py-4 flex items-center gap-3">
           <span className="h-2 w-2 rounded-full bg-emerald-400" />
           <span className="text-sm font-semibold tracking-widest uppercase text-neutral-300">
@@ -154,14 +142,12 @@ export default function Home() {
 
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
           {!result ? (
-            /* ────────────────────── FORM ────────────────────── */
+            /* ─────────── FORM ─────────── */
             <div className="w-full max-w-md">
               <div className="mb-10">
-                <h1 className="text-3xl font-bold tracking-tight text-white">
-                  KelanaAI.
-                </h1>
+                <h1 className="text-3xl font-bold tracking-tight text-white">KelanaAI.</h1>
                 <p className="mt-2 text-sm text-neutral-500">
-                  Tell us where you're going and we'll handle the rest.
+                  Tell us where you&apos;re going and we&apos;ll handle the rest.
                 </p>
               </div>
 
@@ -223,9 +209,7 @@ export default function Home() {
                     className="w-full rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 transition appearance-none cursor-pointer"
                   >
                     {TRAVEL_STYLES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
+                      <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
@@ -256,24 +240,21 @@ export default function Home() {
               </form>
             </div>
           ) : (
-            /* ────────────────────── RESULT ────────────────────── */
+            /* ─────────── RESULT ─────────── */
             <div className="w-full max-w-2xl animate-[fadeIn_0.4s_ease]">
-              {/* Title */}
               <div className="mb-8">
                 <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-1">
                   Trip #{result.id}
                 </p>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {result.destination}
-                </h1>
+                <h1 className="text-3xl font-bold tracking-tight">{result.destination}</h1>
               </div>
 
-              {/* Stats grid */}
+              {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                <StatCard label="Total Budget" value={formatCurrency(result.budget)} />
-                <StatCard label="Daily Budget" value={formatCurrency(result.daily_budget)} />
-                <StatCard label="Days" value={`${form.days} days`} />
-                <StatCard label="Travel Style" value={form.travel_style} />
+                <StatCard label="Total Budget"  value={formatCurrency(result.budget)} />
+                <StatCard label="Daily Budget"  value={formatCurrency(result.daily_budget)} />
+                <StatCard label="Days"          value={`${form.days} days`} />
+                <StatCard label="Travel Style"  value={form.travel_style} />
               </div>
 
               {/* Category + Transport */}
@@ -293,17 +274,23 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* AI Recommendation */}
-              <div className="p-6 rounded-xl bg-neutral-900 border border-neutral-800">
-                <Label>AI Recommendation</Label>
-                <div className="mt-3 text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
-                  {result.ai_recommendation}
+              {/* Itinerary */}
+              <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                    Itinerary
+                  </span>
+                  <span className="text-xs text-neutral-600">·</span>
+                  <span className="text-xs text-neutral-600">
+                    {form.days} {form.days === 1 ? "day" : "days"}
+                  </span>
                 </div>
+                <DaysCard text={result.ai_recommendation} />
               </div>
 
-              {/* Local Food Recommendation */}
+              {/* Local Food */}
               {result.local_food_recommendation && (
-                <div className="p-6 rounded-xl bg-neutral-900 border border-neutral-800">
+                <div className="p-6 rounded-xl bg-neutral-900 border border-neutral-800 mb-6">
                   <div className="flex items-center gap-2 mb-3">
                     <Label>Local Food</Label>
                     <span className="mb-1.5 text-base">🍜</span>
@@ -314,8 +301,8 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Footer actions */}
-              <div className="mt-6 flex items-center justify-between">
+              {/* Footer */}
+              <div className="flex items-center justify-between">
                 <button
                   onClick={handleReset}
                   className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2.5 transition"

@@ -29,6 +29,7 @@ export interface TripSummary {
   budget: number;
   daily_budget: number;
   category: string;
+  travel_style: string | null;
   ai_recommendation: string | null;
 }
 
