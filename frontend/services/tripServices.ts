@@ -1,5 +1,3 @@
-// ─── Base URL ─────────────────────────────────────────────────────────────────
-
 const BASE_URL = "http://localhost:8000";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -35,6 +33,16 @@ export interface TripSummary {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined"
+    ? localStorage.getItem("kelana_token")
+    : null;
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -54,7 +62,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function createTrip(data: TripRequest): Promise<TripResult> {
   const res = await fetch(`${BASE_URL}/api/v1/trips`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     body: JSON.stringify({
       destination: data.destination,
       budget: data.budget,
@@ -67,10 +75,12 @@ export async function createTrip(data: TripRequest): Promise<TripResult> {
 
 /**
  * GET /api/v1/trips
- * Fetch all saved trips.
+ * Fetch trips milik user yang sedang login.
  */
 export async function listTrips(): Promise<TripSummary[]> {
-  const res = await fetch(`${BASE_URL}/api/v1/trips`);
+  const res = await fetch(`${BASE_URL}/api/v1/trips`, {
+    headers: authHeaders(),
+  });
   return handleResponse<TripSummary[]>(res);
 }
 
@@ -79,7 +89,9 @@ export async function listTrips(): Promise<TripSummary[]> {
  * Fetch a single trip by ID.
  */
 export async function getTrip(id: number): Promise<TripSummary> {
-  const res = await fetch(`${BASE_URL}/api/v1/trips/${id}`);
+  const res = await fetch(`${BASE_URL}/api/v1/trips/${id}`, {
+    headers: authHeaders(),
+  });
   return handleResponse<TripSummary>(res);
 }
 
@@ -90,6 +102,7 @@ export async function getTrip(id: number): Promise<TripSummary> {
 export async function deleteTrip(id: number): Promise<{ message: string }> {
   const res = await fetch(`${BASE_URL}/api/v1/trips/${id}`, {
     method: "DELETE",
+    headers: authHeaders(),
   });
   return handleResponse<{ message: string }>(res);
 }

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createTrip, type TripRequest, type TripResult } from "@/services/tripServices";
+import { getUser, clearSession, type AuthUser } from "@/services/authServices";
 import DaysCard from "@/components/DaysCard";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -87,10 +89,24 @@ function LoadingOverlay({ destination }: { destination: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
+  const router = useRouter();
+
   const [form, setForm]       = useState<TripRequest>(INITIAL_FORM);
   const [result, setResult]   = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [user, setUser]       = useState<AuthUser | null>(null);
+
+  // Baca user dari localStorage setelah mount (client-only)
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
+  function handleLogout() {
+    clearSession();
+    setUser(null);
+    router.push("/login");
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -132,12 +148,37 @@ export default function Home() {
           <span className="text-sm font-semibold tracking-widest uppercase text-neutral-300">
             Kelana<span className="text-emerald-400">AI</span>
           </span>
-          <Link
-            href="/trips"
-            className="ml-auto text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2 transition"
-          >
-            My Trips
-          </Link>
+          <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/trips"
+              className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2 transition"
+            >
+              My Trips
+            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/profile"
+                  className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2 transition hidden sm:block"
+                >
+                  {user.name}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-red-400 border border-neutral-800 hover:border-red-900 rounded-xl px-4 py-2 transition"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs font-semibold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 border border-emerald-900 hover:border-emerald-700 rounded-xl px-4 py-2 transition"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </header>
 
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
