@@ -13,7 +13,7 @@ from services.trip_service import (
 )
 from services.bedrock_service import get_travel_recommendation, get_food_recommendation
 from services.auth_service import hash_password, verify_password, create_access_token, SECRET_KEY, ALGORITHM
-
+from services.kb_service import ask_knowledge_base
 app = FastAPI()
 
 app.add_middleware(
@@ -312,3 +312,21 @@ def delete_trip(trip_id: int, current_user: User = Depends(get_current_user)):
     db.commit()
     db.close()
     return {"message": f"Trip with id {trip_id} deleted successfully"}
+
+
+class QuestionRequest(BaseModel):
+    question: str
+
+
+# POST /api/v1/ask — tanya ke Knowledge Base
+@app.post("/api/v1/ask")
+def ask_endpoint(request: QuestionRequest):
+    # 1. Send question to Knowledge Base
+    answer = ask_knowledge_base(
+        request.question
+    )
+    # 2. Return grounded answer to frontend
+    return {
+        "question": request.question,
+        "answer": answer
+    }

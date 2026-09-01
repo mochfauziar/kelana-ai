@@ -9,7 +9,11 @@ import DaysCard from "@/components/DaysCard";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TRAVEL_STYLES = ["Budget", "Standard", "Comfort", "Luxury", "Family"];
+const TRAVEL_STYLES: { value: string; label: string; icon: string }[] = [
+  { value: "Budget",   label: "Budget",   icon: "🎒" },
+  { value: "Standard", label: "Standard", icon: "🧳" },
+  { value: "Luxury",   label: "Luxury",   icon: "🌴" },
+];
 
 const INITIAL_FORM: TripRequest = {
   destination:  "",
@@ -32,7 +36,8 @@ function formatCurrency(value: number) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <span className="block text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1.5">
+    <span className="block text-xs font-semibold uppercase tracking-widest mb-1.5"
+      style={{ color: "var(--text-secondary)" }}>
       {children}
     </span>
   );
@@ -40,49 +45,234 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col gap-0.5 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
-      <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+    <div className="card flex flex-col gap-0.5 p-4">
+      <span className="text-xs font-semibold uppercase tracking-widest"
+        style={{ color: "var(--text-muted)" }}>
         {label}
       </span>
-      <span className="text-lg font-semibold text-white leading-tight">{value}</span>
+      <span className="text-lg font-semibold leading-tight"
+        style={{ color: "var(--text-primary)" }}>
+        {value}
+      </span>
     </div>
   );
 }
 
 function Skeleton({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl ${className ?? ""}`}
+    style={{ background: "var(--bg-elevated)" }} />;
+}
+
+// ─── Loading Overlay ──────────────────────────────────────────────────────────
+
+const LOADING_STEPS = [
+  { icon: "✈️",  text: "Booking your flight route…"           },
+  { icon: "🗺️",  text: "Mapping the best destinations…"       },
+  { icon: "🏨",  text: "Scouting top-rated stays…"            },
+  { icon: "🍜",  text: "Discovering local food gems…"         },
+  { icon: "🚆",  text: "Planning transport connections…"      },
+  { icon: "🤖",  text: "AI crafting your itinerary…"          },
+  { icon: "✨",  text: "Putting the final touches…"           },
+];
+
+function LoadingOverlay({ destination }: { destination: string }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  // Cycle through steps every 2.2s with fade transition
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setStepIdx((i) => (i + 1) % LOADING_STEPS.length);
+        setVisible(true);
+      }, 300);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const step = LOADING_STEPS[stepIdx];
+
   return (
-    <div className={`animate-pulse rounded-xl bg-neutral-800 ${className ?? ""}`} />
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 px-4"
+      style={{ background: "rgba(13,13,13,0.96)", backdropFilter: "blur(12px)" }}
+    >
+      {/* ── Animated travel track ── */}
+      <div className="w-full max-w-sm flex flex-col items-center gap-3">
+        {/* Track */}
+        <div className="relative w-full h-px" style={{ background: "var(--border)" }}>
+          {/* Moving plane */}
+          <div
+            className="absolute -top-3 text-xl"
+            style={{
+              animation: "planeFly 2.8s ease-in-out infinite",
+            }}
+          >
+            ✈️
+          </div>
+          {/* Origin dot */}
+          <span className="absolute left-0 -top-1 h-2 w-2 rounded-full"
+            style={{ background: "var(--accent)", transform: "translateY(-25%)" }} />
+          {/* Dest dot pulse */}
+          <span className="absolute right-0 -top-1 h-2 w-2 rounded-full"
+            style={{ background: "var(--accent-glow)", transform: "translateY(-25%)" }}>
+            <span className="absolute inset-0 rounded-full animate-ping"
+              style={{ background: "var(--accent)", opacity: 0.5 }} />
+          </span>
+        </div>
+
+        {/* Destination label */}
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: "var(--text-muted)" }}>Origin</span>
+          <span className="text-xs font-bold" style={{ color: "var(--accent)" }}>
+            {destination}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Cycling status message ── */}
+      <div className="flex flex-col items-center gap-3 text-center"
+        style={{ transition: "opacity 0.3s", opacity: visible ? 1 : 0 }}>
+        <span className="text-5xl" style={{ animation: "iconBounce 0.6s ease" }}>
+          {step.icon}
+        </span>
+        <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+          {step.text}
+        </p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Generating itinerary for{" "}
+          <span style={{ color: "var(--accent)" }}>{destination}</span>
+        </p>
+      </div>
+
+      {/* ── Progress dots ── */}
+      <div className="flex items-center gap-2">
+        {LOADING_STEPS.map((_, i) => (
+          <span
+            key={i}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width:   i === stepIdx ? "20px" : "6px",
+              height:  "6px",
+              background: i === stepIdx ? "var(--accent)" : "var(--border)",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ── Skeleton preview cards ── */}
+      <div className="w-full max-w-sm flex flex-col gap-3 opacity-20 pointer-events-none">
+        <div className="grid grid-cols-4 gap-2">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14" />)}
+        </div>
+        <Skeleton className="h-40" />
+        <Skeleton className="h-28" />
+      </div>
+
+      {/* Inline keyframes */}
+      <style>{`
+        @keyframes planeFly {
+          0%   { left: 0%;   transform: translateX(0)    scaleX(1); }
+          48%  { left: 95%;  transform: translateX(-100%) scaleX(1); }
+          50%  { left: 95%;  transform: translateX(-100%) scaleX(-1); }
+          98%  { left: 0%;   transform: translateX(0)    scaleX(-1); }
+          100% { left: 0%;   transform: translateX(0)    scaleX(1); }
+        }
+        @keyframes iconBounce {
+          0%   { transform: scale(0.7) translateY(4px); opacity: 0; }
+          60%  { transform: scale(1.15) translateY(-3px); }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
 
-function LoadingOverlay({ destination }: { destination: string }) {
+// ─── Segmented Control ────────────────────────────────────────────────────────
+
+function SegmentedControl({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-6 px-4">
-      <div className="relative h-14 w-14">
-        <div className="absolute inset-0 rounded-full border-2 border-neutral-800" />
-        <div className="absolute inset-0 rounded-full border-2 border-t-emerald-400 animate-spin" />
-      </div>
-      <div className="text-center">
-        <p className="text-base font-semibold text-white">
-          Planning your trip to{" "}
-          <span className="text-emerald-400">{destination}</span>…
-        </p>
-        <p className="mt-1.5 text-xs text-neutral-500">
-          AI is crafting your personalised itinerary. This may take a moment.
-        </p>
-      </div>
-      <div className="w-full max-w-2xl mt-4 flex flex-col gap-3 opacity-40">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-14" />
-          <Skeleton className="h-14" />
-        </div>
-        <Skeleton className="h-48" />
-        <Skeleton className="h-36" />
-      </div>
+    <div className="flex rounded-xl p-1 gap-1" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+      {TRAVEL_STYLES.map((s) => {
+        const active = value === s.value;
+        return (
+          <button
+            key={s.value}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(s.value)}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all duration-150 disabled:opacity-40"
+            style={
+              active
+                ? { background: "var(--accent)", color: "#0D0D0D" }
+                : { background: "transparent", color: "var(--text-secondary)" }
+            }
+          >
+            <span>{s.icon}</span>
+            <span>{s.label}</span>
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+// ─── Navbar ───────────────────────────────────────────────────────────────────
+
+function Navbar({ user, onLogout }: { user: AuthUser | null; onLogout: () => void }) {
+  return (
+    <header className="border-b px-6 py-4 flex items-center gap-3"
+      style={{ borderColor: "var(--border)", background: "var(--bg-base)" }}>
+      <span className="h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
+      <span className="text-sm font-semibold tracking-widest uppercase"
+        style={{ color: "var(--text-secondary)" }}>
+        Kelana<span style={{ color: "var(--accent)" }}>AI</span>
+      </span>
+      <nav className="ml-auto flex items-center gap-2">
+        <Link href="/ask"
+          className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition hover:opacity-80"
+          style={{ color: "var(--accent)", borderColor: "var(--accent-glow)" }}>
+          Ask AI
+        </Link>
+        <Link href="/trips"
+          className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition hover:opacity-80"
+          style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}>
+          My Trips
+        </Link>
+        {user ? (
+          <>
+            <Link href="/profile"
+              className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition hover:opacity-80 hidden sm:block"
+              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}>
+              {user.name}
+            </Link>
+            <button onClick={onLogout}
+              className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition"
+              style={{ color: "var(--text-muted)", borderColor: "var(--border)" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}>
+              Logout
+            </button>
+          </>
+        ) : (
+          <Link href="/login"
+            className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition"
+            style={{ color: "var(--accent)", borderColor: "var(--accent-glow)" }}>
+            Sign In
+          </Link>
+        )}
+      </nav>
+    </header>
   );
 }
 
@@ -97,10 +287,7 @@ export default function Home() {
   const [error, setError]     = useState<string | null>(null);
   const [user, setUser]       = useState<AuthUser | null>(null);
 
-  // Baca user dari localStorage setelah mount (client-only)
-  useEffect(() => {
-    setUser(getUser());
-  }, []);
+  useEffect(() => { setUser(getUser()); }, []);
 
   function handleLogout() {
     clearSession();
@@ -108,7 +295,7 @@ export default function Home() {
     router.push("/login");
   }
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
@@ -141,53 +328,30 @@ export default function Home() {
     <>
       {loading && <LoadingOverlay destination={form.destination} />}
 
-      <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
-        {/* Header */}
-        <header className="border-b border-neutral-900 px-6 py-4 flex items-center gap-3">
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
-          <span className="text-sm font-semibold tracking-widest uppercase text-neutral-300">
-            Kelana<span className="text-emerald-400">AI</span>
-          </span>
-          <div className="ml-auto flex items-center gap-3">
-            <Link
-              href="/trips"
-              className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2 transition"
-            >
-              My Trips
-            </Link>
-            {user ? (
-              <>
-                <Link
-                  href="/profile"
-                  className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2 transition hidden sm:block"
-                >
-                  {user.name}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-red-400 border border-neutral-800 hover:border-red-900 rounded-xl px-4 py-2 transition"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <Link
-                href="/login"
-                className="text-xs font-semibold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 border border-emerald-900 hover:border-emerald-700 rounded-xl px-4 py-2 transition"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-        </header>
+      <main className="min-h-screen flex flex-col" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
+        <Navbar user={user} onLogout={handleLogout} />
 
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-          {!result ? (
-            /* ─────────── FORM ─────────── */
-            <div className="w-full max-w-md">
+        {!result ? (
+          /* ─────────── HERO + FORM ─────────── */
+          <div className="relative flex-1 flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
+            {/* Subtle map grid overlay */}
+            <div className="map-overlay absolute inset-0 pointer-events-none" />
+            {/* Accent glow center */}
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 60% 40% at 50% 60%, rgba(86,171,124,0.06) 0%, transparent 70%)" }} />
+
+            <div className="relative w-full max-w-md">
+              {/* Hero text */}
               <div className="mb-10">
-                <h1 className="text-3xl font-bold tracking-tight text-white">KelanaAI.</h1>
-                <p className="mt-2 text-sm text-neutral-500">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
+                  style={{ background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-glow)" }}>
+                  <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--accent)" }} />
+                  AI-Powered Trip Planner
+                </div>
+                <h1 className="text-4xl font-bold tracking-tight leading-tight" style={{ color: "var(--text-primary)" }}>
+                  KelanaAI<span style={{ color: "var(--accent)" }}>.</span>
+                </h1>
+                <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
                   Tell us where you&apos;re going and we&apos;ll handle the rest.
                 </p>
               </div>
@@ -204,7 +368,7 @@ export default function Home() {
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="w-full rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 transition"
+                    className="input-base"
                   />
                 </div>
 
@@ -221,11 +385,11 @@ export default function Home() {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className="w-full rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 transition"
+                      className="input-base"
                     />
                   </div>
                   <div>
-                    <Label>Budget (USD)</Label>
+                    <Label>Budget <span className="normal-case font-normal tracking-normal" style={{ color: "var(--text-muted)" }}>(USD)</span></Label>
                     <input
                       name="budget"
                       type="number"
@@ -234,57 +398,50 @@ export default function Home() {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className="w-full rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 transition"
+                      className="input-base"
                     />
                   </div>
                 </div>
 
-                {/* Travel Style */}
+                {/* Travel Style — Segmented Control */}
                 <div>
                   <Label>Travel Style</Label>
-                  <select
-                    name="travel_style"
+                  <SegmentedControl
                     value={form.travel_style}
-                    onChange={handleChange}
+                    onChange={(v) => setForm((p) => ({ ...p, travel_style: v }))}
                     disabled={loading}
-                    className="w-full rounded-xl bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 transition appearance-none cursor-pointer"
-                  >
-                    {TRAVEL_STYLES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 {/* Error */}
                 {error && (
-                  <div className="flex items-start gap-3 text-xs text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">
+                  <div className="flex items-start gap-3 text-xs rounded-xl px-4 py-3"
+                    style={{ color: "#f87171", background: "rgba(127,29,29,0.25)", border: "1px solid rgba(127,29,29,0.5)" }}>
                     <span className="mt-0.5 shrink-0">✕</span>
                     <span>{error}</span>
                   </div>
                 )}
 
                 {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="mt-1 w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:cursor-not-allowed text-neutral-950 font-semibold py-3 text-sm transition flex items-center justify-center gap-2"
-                >
+                <button type="submit" disabled={loading} className="btn-accent mt-1 w-full py-3">
                   {loading ? (
                     <>
-                      <span className="h-3.5 w-3.5 rounded-full border-2 border-neutral-600 border-t-neutral-400 animate-spin" />
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-t-transparent animate-spin"
+                        style={{ borderColor: "rgba(13,13,13,0.4)", borderTopColor: "transparent" }} />
                       Planning…
                     </>
-                  ) : (
-                    "Generate Trip Plan"
-                  )}
+                  ) : "Generate Trip Plan"}
                 </button>
               </form>
             </div>
-          ) : (
-            /* ─────────── RESULT ─────────── */
-            <div className="w-full max-w-2xl animate-[fadeIn_0.4s_ease]">
+          </div>
+        ) : (
+          /* ─────────── RESULT ─────────── */
+          <div className="flex-1 flex flex-col items-center px-4 py-16">
+            <div className="w-full max-w-2xl animate-fade-up">
               <div className="mb-8">
-                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-1">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-1"
+                  style={{ color: "var(--accent)" }}>
                   Trip #{result.id}
                 </p>
                 <h1 className="text-3xl font-bold tracking-tight">{result.destination}</h1>
@@ -300,29 +457,27 @@ export default function Home() {
 
               {/* Category + Transport */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800">
+                <div className="card p-4">
                   <Label>Category</Label>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold"
+                    style={{ color: "var(--accent)" }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--accent)" }} />
                     {result.category}
                   </span>
                 </div>
-                <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800">
+                <div className="card p-4">
                   <Label>Transportation</Label>
-                  <span className="text-sm font-semibold text-white">
-                    {result.recommendation_transportation}
-                  </span>
+                  <span className="text-sm font-semibold">{result.recommendation_transportation}</span>
                 </div>
               </div>
 
               {/* Itinerary */}
-              <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5 mb-6">
+              <div className="card p-5 mb-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
-                    Itinerary
-                  </span>
-                  <span className="text-xs text-neutral-600">·</span>
-                  <span className="text-xs text-neutral-600">
+                  <span className="text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}>Itinerary</span>
+                  <span style={{ color: "var(--text-muted)" }}>·</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {form.days} {form.days === 1 ? "day" : "days"}
                   </span>
                 </div>
@@ -331,12 +486,13 @@ export default function Home() {
 
               {/* Local Food */}
               {result.local_food_recommendation && (
-                <div className="p-6 rounded-xl bg-neutral-900 border border-neutral-800 mb-6">
+                <div className="card p-6 mb-6">
                   <div className="flex items-center gap-2 mb-3">
                     <Label>Local Food</Label>
                     <span className="mb-1.5 text-base">🍜</span>
                   </div>
-                  <div className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
+                  <div className="text-sm leading-relaxed whitespace-pre-line"
+                    style={{ color: "var(--text-secondary)" }}>
                     {result.local_food_recommendation}
                   </div>
                 </div>
@@ -344,22 +500,20 @@ export default function Home() {
 
               {/* Footer */}
               <div className="flex items-center justify-between">
-                <button
-                  onClick={handleReset}
-                  className="text-xs font-semibold uppercase tracking-widest text-neutral-500 hover:text-white border border-neutral-800 hover:border-neutral-600 rounded-xl px-4 py-2.5 transition"
-                >
+                <button onClick={handleReset}
+                  className="text-xs font-semibold uppercase tracking-widest px-4 py-2.5 rounded-xl border transition"
+                  style={{ color: "var(--text-muted)", borderColor: "var(--border)" }}>
                   + New Trip
                 </button>
-                <Link
-                  href="/trips"
-                  className="text-xs font-semibold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition"
-                >
+                <Link href="/trips"
+                  className="text-xs font-semibold uppercase tracking-widest transition"
+                  style={{ color: "var(--accent)" }}>
                   View all trips →
                 </Link>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
     </>
   );

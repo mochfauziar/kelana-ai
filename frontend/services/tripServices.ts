@@ -106,3 +106,27 @@ export async function deleteTrip(id: number): Promise<{ message: string }> {
   });
   return handleResponse<{ message: string }>(res);
 }
+
+// ─── Knowledge Base ───────────────────────────────────────────────────────────
+
+export interface AskRequest {
+  question: string;
+}
+
+export interface AskResponse {
+  question: string;
+  answer: string;
+}
+
+/**
+ * POST /api/v1/ask
+ * Kirim pertanyaan ke Knowledge Base dan dapatkan jawaban.
+ */
+export async function askKnowledgeBase(question: string): Promise<AskResponse> {
+  const res = await fetch(`${BASE_URL}/api/v1/ask`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ question }),
+  });
+  return handleResponse<AskResponse>(res);
+}
