@@ -1,0 +1,19 @@
+[project]
+name = "kelana-ai"
+version = "0.1.0"
+requires-python = "==3.13.*"
+
+dependencies = [
+    "fastapi[standard]==0.115.6",
+    "uvicorn==0.32.1",
+    "sqlalchemy==2.0.36",
+    "psycopg2==2.9.10",
+    "python-dotenv==1.0.0",
+    "requests==2.32.3",
+    "bcrypt==4.0.1",
+    "python-jose[cryptography]==3.3.0",
+    "pydantic[email]==2.10.4",
+]
+
+[tool.fastapi]
+entrypoint = "main:app"

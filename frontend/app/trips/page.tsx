@@ -5,7 +5,7 @@ import Link from "next/link";
 import { listTrips, deleteTrip, type TripSummary } from "@/services/tripServices";
 import TripCard from "@/components/TripCard";
 
-const TRAVEL_STYLES = ["All", "Budget", "Standard", "Comfort"];
+const TRAVEL_STYLES = ["All", "Budget", "Standard", "Luxury"];
 
 type SortOption = "latest" | "oldest" | "highest_budget";
 
