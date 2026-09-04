@@ -49,6 +49,11 @@ Format your response in Markdown using:
 Provide a practical and well-structured itinerary for each day, including
 recommended activities, places to visit, and estimated costs where appropriate."""
 
+SUMMARY_PROMPT_TEMPLATE = """You are a travel copywriter.
+Write a single short line (max 12 words) summarising a {days}-day trip to {destination} with a {travel_style} travel style.
+Focus on the mood and highlights (e.g. "5 days · beaches, temples, and night markets").
+Reply with ONLY that one line — no extra explanation, no quotes."""
+
 FOOD_PROMPT_TEMPLATE = """You are a local food expert and culinary travel guide.
 Recommend must-try local foods and dishes for a traveller visiting {destination}.
 Travel Style: {travel_style}
@@ -218,6 +223,132 @@ def get_food_recommendation(
             if "text" in block
         )
         return recommendation.strip()
+
+    except requests.HTTPError as exc:
+        raise RuntimeError(
+            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+
+
+def get_trip_summary(
+    destination: str,
+    days: int,
+    travel_style: str,
+) -> str:
+    """
+    Generate a short one-line trip summary (≤12 words) using AWS Bedrock.
+
+    Parameters
+    ----------
+    destination   : Travel destination (e.g. "Bali, Indonesia").
+    days          : Number of travel days.
+    travel_style  : Style of travel (e.g. "Backpacker", "Luxury").
+
+    Returns
+    -------
+    str : One-line summary, e.g. "5 days · beaches, temples, and night markets".
+
+    Raises
+    ------
+    RuntimeError  : If the Bedrock API call fails.
+    """
+    prompt = SUMMARY_PROMPT_TEMPLATE.format(
+        days=days,
+        destination=destination,
+        travel_style=travel_style,
+    )
+
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"text": prompt}],
+            }
+        ],
+        "inferenceConfig": {
+            "maxTokens": 64,
+            "temperature": 0.5,
+            "topP": 0.9,
+        },
+    }
+
+    try:
+        response = requests.post(
+            url     = BEDROCK_ENDPOINT,
+            headers = get_bedrock_headers(),
+            json    = payload,
+            timeout = 30,
+        )
+        response.raise_for_status()
+
+        data           = response.json()
+        output_message = data["output"]["message"]
+        summary = " ".join(
+            block["text"]
+            for block in output_message["content"]
+            if "text" in block
+        )
+        return summary.strip().strip('"').strip("'")
+
+    except requests.HTTPError as exc:
+        raise RuntimeError(
+            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+
+def chat_with_history(messages: list[dict]) -> str:
+    """
+    Send a multi-turn conversation to AWS Bedrock Converse API.
+
+    Parameters
+    ----------
+    messages : list of {"role": "user"|"assistant", "content": str}
+               Full conversation history ordered oldest → newest.
+               The last entry must have role "user".
+
+    Returns
+    -------
+    str : The AI assistant's reply text.
+
+    Raises
+    ------
+    RuntimeError : If the Bedrock API call fails.
+    """
+    payload = {
+        "messages": [
+            {
+                "role": msg["role"],
+                "content": [{"text": msg["content"]}],
+            }
+            for msg in messages
+        ],
+        "inferenceConfig": {
+            "maxTokens": 2048,
+            "temperature": 0.7,
+            "topP": 0.9,
+        },
+    }
+
+    try:
+        response = requests.post(
+            url     = BEDROCK_ENDPOINT,
+            headers = get_bedrock_headers(),
+            json    = payload,
+            timeout = 60,
+        )
+        response.raise_for_status()
+
+        data           = response.json()
+        output_message = data["output"]["message"]
+        reply = " ".join(
+            block["text"]
+            for block in output_message["content"]
+            if "text" in block
+        )
+        return reply.strip()
 
     except requests.HTTPError as exc:
         raise RuntimeError(

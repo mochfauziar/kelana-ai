@@ -16,6 +16,7 @@ class Trip(Base):
     travel_style: Column[str]              = Column(String, nullable=True)
     ai_recommendation: Column[str]        = Column(Text, nullable=True)
     local_food_recommendation: Column[str] = Column(Text, nullable=True)
+    summary: Column[str]                   = Column(Text, nullable=True)
     created_at         = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     user_id            = Column(BigInteger, ForeignKey("users.id"), nullable=True)
 

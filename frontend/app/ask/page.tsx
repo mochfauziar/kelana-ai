@@ -54,6 +54,13 @@ function Navbar({ user, onLogout }: { user: AuthUser | null; onLogout: () => voi
         >
           My Trips
         </Link>
+        <Link
+          href="/chat"
+          className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-xl border transition hover:opacity-80"
+          style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+        >
+          Chat
+        </Link>
         {user ? (
           <>
             <Link
@@ -185,7 +192,7 @@ export default function AskPage() {
     setInput("");
     setLoading(true);
 
-    try {
+    try {      
       const res = await askKnowledgeBase(question.trim());
       setMessages((prev) => [
         ...prev.slice(0, -1),

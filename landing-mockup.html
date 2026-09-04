@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KelanaAI — Landing Mockup</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Reset & tokens ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #0c0f0d;
+      --bg-panel:       #121613;
+      --bg-surface:     #1a1e1b;
+      --bg-elevated:    #222622;
+      --border:         #2a302a;
+      --border-soft:    #222622;
+      --accent:         #8fd4a0;
+      --accent-dim:     rgba(143,212,160,0.10);
+      --accent-glow:    rgba(143,212,160,0.22);
+      --clay:           #cf8a5c;
+      --clay-dim:       rgba(207,138,92,0.15);
+      --text-primary:   #f0f2f0;
+      --text-secondary: #8a9488;
+      --text-muted:     #50584f;
+      --font-serif:     'Fraunces', Georgia, serif;
+      --font-sans:      'Inter', system-ui, -apple-system, sans-serif;
+      --radius-sm:      10px;
+      --radius-md:      13px;
+      --radius-lg:      16px;
+      --radius-pill:    100px;
+    }
+
+    html { color-scheme: dark; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Scrollbar ───────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: #2a302a; border-radius: 3px; }
+
+    /* ─── Navbar ──────────────────────────────────────────────────────── */
+    .navbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 28px;
+      height: 60px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-base);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .navbar-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .navbar-brand {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .navbar-brand em { color: var(--accent); font-style: normal; }
+
+    .navbar-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-pill {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 7px 16px;
+      border-radius: var(--radius-pill);
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .nav-pill:hover { opacity: 0.75; }
+
+    .nav-pill--accent {
+      color: var(--accent);
+      border-color: var(--accent-glow);
+      background: var(--accent-dim);
+    }
+    .nav-pill--ghost {
+      color: var(--text-secondary);
+      border-color: var(--border);
+    }
+
+    /* Avatar */
+    .nav-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: border-color 0.15s;
+      position: relative;
+    }
+    .nav-avatar:hover { border-color: var(--accent-glow); }
+
+    /* ─── Two-column layout ───────────────────────────────────────────── */
+    .split-layout {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* ─── Form column ─────────────────────────────────────────────────── */
+    .form-col {
+      width: 100%;
+      max-width: 560px;
+      flex-shrink: 0;
+      padding: 52px 48px 52px 52px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--bg-base);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Hero badge */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-dim);
+      border: 1px solid var(--accent-glow);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      margin-bottom: 18px;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Headline */
+    .hero-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(34px, 4.5vw, 48px);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+    .hero-headline em {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .hero-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+
+    /* Form */
+    .form { display: flex; flex-direction: column; gap: 20px; }
+
+    .field-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+    }
+
+    .input-wrap { position: relative; }
+
+    .input-adorn {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      pointer-events: none;
+      user-select: none;
+    }
+    .input-adorn--left  { left: 14px; }
+    .input-adorn--right { right: 14px; }
+
+    .input-base {
+      width: 100%;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 11px 14px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input-base::placeholder { color: var(--text-muted); }
+    .input-base:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+    .input-base--prefix { padding-left: 30px; }
+    .input-base--suffix { padding-right: 46px; }
+
+    /* Remove number input spinners */
+    .input-base[type=number]::-webkit-outer-spin-button,
+    .input-base[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .input-base[type=number] { -moz-appearance: textfield; }
+
+    /* Two-col grid within form */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* Segmented control */
+    .seg-wrap {
+      display: flex;
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 4px;
+      gap: 4px;
+    }
+    .seg-btn {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 8px;
+      border-radius: 9px;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      background: transparent;
+      color: var(--text-secondary);
+    }
+    .seg-btn--active {
+      background: var(--accent);
+      color: #0c0f0d;
+    }
+
+    /* CTA */
+    .btn-cta {
+      width: 100%;
+      padding: 13px 20px;
+      background: var(--accent);
+      color: #0c0f0d;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: var(--radius-pill);
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: background 0.15s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 4px;
+    }
+    .btn-cta:hover { background: #a3ddb4; }
+    .btn-cta:active { transform: scale(0.99); }
+
+    .cta-helper {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+    .cta-helper span { color: var(--text-secondary); }
+
+    /* ─── Illustration column ─────────────────────────────────────────── */
+    .illus-col {
+      flex: 1;
+      background: var(--bg-panel);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 44px 44px 48px;
+    }
+
+    /* Divider line between columns */
+    .col-divider {
+      width: 1px;
+      background: var(--border);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 3;
+    }
+
+    /* Topo SVG background */
+    .illus-topo {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    /* Radial glow */
+    .illus-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 55% at 55% 38%, rgba(143,212,160,0.07) 0%, transparent 70%),
+                  radial-gradient(ellipse 40% 30% at 80% 70%, rgba(207,138,92,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Content above the lower block */
+    .illus-top {
+      position: absolute;
+      top: 44px; left: 44px; right: 44px;
+    }
+
+    .illus-heading {
+      font-family: var(--font-serif);
+      font-size: clamp(28px, 3.2vw, 40px);
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.015em;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    .illus-heading em { color: var(--accent); font-style: italic; }
+
+    .illus-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 380px;
+    }
+
+    /* Stat cards row */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .stat-card {
+      border-radius: var(--radius-md);
+      background: rgba(18, 22, 19, 0.72);
+      border: 1px solid rgba(143,212,160,0.10);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    .stat-card-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      font-family: var(--font-serif);
+    }
+    .stat-card-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .stat-accent { color: var(--accent); }
+    .stat-clay   { color: var(--clay); }
+
+    /* Destination chips */
+    .chips-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      position: relative; z-index: 2;
+    }
+
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      position: relative; z-index: 2;
+    }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px 7px 10px;
+      border-radius: var(--radius-pill);
+      background: rgba(18,22,19,0.65);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .chip:hover { border-color: var(--accent-glow); color: var(--text-primary); }
+
+    .chip-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ─── Flight route SVG ───────────────────────────────────────────── */
+    .flight-svg {
+      position: absolute;
+      inset: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    /* ─── Responsive: hide illus under 980px ─────────────────────────── */
+    @media (max-width: 979px) {
+      .illus-col,
+      .col-divider { display: none; }
+      .form-col {
+        max-width: 100%;
+        padding: 40px 24px;
+        align-items: center;
+      }
+      .form-col > * { width: 100%; max-width: 480px; }
+    }
+
+    @media (max-width: 520px) {
+      .form-col { padding: 32px 16px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Navbar ──────────────────────────────────────────────────────────── -->
+<header class="navbar">
+  <div class="navbar-dot"></div>
+  <span class="navbar-brand">Kelana<em>AI</em></span>
+
+  <nav class="navbar-nav">
+    <a href="#" class="nav-pill nav-pill--accent">Ask AI</a>
+    <a href="#" class="nav-pill nav-pill--ghost">My Trips</a>
+
+    <!-- Avatar (collapsed user + logout) -->
+    <div class="nav-avatar" title="Account">
+      AJ
+      <!-- Dropdown indicator dot -->
+      <span style="
+        position: absolute; bottom: 1px; right: 1px;
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 1.5px solid var(--bg-base);
+      "></span>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ─── Split layout ────────────────────────────────────────────────────── -->
+<main class="split-layout">
+
+  <!-- ── Form column ── -->
+  <section class="form-col">
+
+    <!-- Hero text -->
+    <div>
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        AI-Powered Trip Planner
+      </div>
+
+      <h1 class="hero-headline">
+        Plan your next<br><em>escape.</em>
+      </h1>
+      <p class="hero-sub">
+        Tell us where you&rsquo;re headed and we&rsquo;ll craft a full itinerary — stays, food, transport &amp; more.
+      </p>
+    </div>
+
+    <!-- Form -->
+    <form class="form" onsubmit="return false;">
+
+      <!-- Destination -->
+      <div>
+        <label class="field-label" for="destination">Destination</label>
+        <input
+          class="input-base"
+          id="destination"
+          type="text"
+          placeholder="e.g. Japan, Bali, Paris"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Days + Budget -->
+      <div class="grid-2">
+        <!-- Days -->
+        <div>
+          <label class="field-label" for="days">Days</label>
+          <div class="input-wrap">
+            <input
+              class="input-base input-base--suffix"
+              id="days"
+              type="number"
+              min="1" max="365"
+              value="5"
+            />
+            <span class="input-adorn input-adorn--right">days</span>
+          </div>
+        </div>
+
+        <!-- Budget -->
+        <div>
+          <label class="field-label" for="budget">Budget</label>
+          <div class="input-wrap">
+            <span class="input-adorn input-adorn--left">$</span>
+            <input
+              class="input-base input-base--prefix"
+              id="budget"
+              type="number"
+              min="1"
+              value="1000"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Travel Style segmented control -->
+      <div>
+        <label class="field-label">Travel Style</label>
+        <div class="seg-wrap" role="group">
+          <button type="button" class="seg-btn" onclick="selectStyle(this)">🎒 Budget</button>
+          <button type="button" class="seg-btn seg-btn--active" onclick="selectStyle(this)">🧳 Standard</button>
+          <button type="button" class="seg-btn" onclick="selectStyle(this)">🌴 Luxury</button>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div>
+        <button type="submit" class="btn-cta">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+            <path d="M1.5 7.5h12M9 3l4.5 4.5L9 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Generate Trip Plan
+        </button>
+        <p class="cta-helper">Takes about <span>15 seconds</span> &middot; you can edit anything after</p>
+      </div>
+
+    </form>
+  </section>
+
+  <!-- ── Column divider ── -->
+  <div class="col-divider"></div>
+
+  <!-- ── Illustration column ── -->
+  <section class="illus-col">
+
+    <!-- Topographic SVG background -->
+    <svg class="illus-topo" viewBox="0 0 800 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <style>
+          .topo { fill: none; stroke: rgba(143,212,160,0.07); stroke-width: 1; }
+        </style>
+      </defs>
+      <!-- Topo contour rings — concentric irregular ellipses -->
+      <ellipse class="topo" cx="620" cy="200" rx="320" ry="190"/>
+      <ellipse class="topo" cx="620" cy="200" rx="270" ry="155"/>
+      <ellipse class="topo" cx="620" cy="200" rx="220" ry="122"/>
+      <ellipse class="topo" cx="620" cy="200" rx="170" ry="92"/>
+      <ellipse class="topo" cx="620" cy="200" rx="120" ry="64"/>
+      <ellipse class="topo" cx="620" cy="200" rx="70"  ry="38"/>
+
+      <ellipse class="topo" cx="140" cy="520" rx="240" ry="150"/>
+      <ellipse class="topo" cx="140" cy="520" rx="190" ry="118"/>
+      <ellipse class="topo" cx="140" cy="520" rx="140" ry="88"/>
+      <ellipse class="topo" cx="140" cy="520" rx="90"  ry="58"/>
+      <ellipse class="topo" cx="140" cy="520" rx="44"  ry="30"/>
+
+      <!-- Extra scattered contours for texture -->
+      <ellipse class="topo" cx="400" cy="370" rx="200" ry="110"/>
+      <ellipse class="topo" cx="400" cy="370" rx="150" ry="82"/>
+      <ellipse class="topo" cx="400" cy="370" rx="100" ry="55"/>
+    </svg>
+
+    <!-- Radial glow -->
+    <div class="illus-glow"></div>
+
+    <!-- Dashed flight-route SVG overlay -->
+    <svg class="flight-svg" viewBox="0 0 800 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <!-- Gradient for the route path -->
+        <linearGradient id="routeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#8fd4a0" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#cf8a5c" stop-opacity="0.55"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Curved dashed route: Tokyo → Dubai → Lisbon -->
+      <path
+        d="M 160 130 C 260 60, 480 110, 560 210 C 640 310, 680 380, 720 460"
+        fill="none"
+        stroke="url(#routeGrad)"
+        stroke-width="1.5"
+        stroke-dasharray="6 5"
+        stroke-linecap="round"
+      />
+
+      <!-- Pin 1 — Tokyo area (accent) -->
+      <g transform="translate(160,130)">
+        <circle cx="0" cy="0" r="14" fill="rgba(143,212,160,0.10)" />
+        <circle cx="0" cy="0" r="5"  fill="#8fd4a0" />
+        <circle cx="0" cy="0" r="9"  fill="none" stroke="#8fd4a0" stroke-width="1" stroke-opacity="0.4"/>
+        <!-- Ping ring -->
+        <circle cx="0" cy="0" r="5" fill="none" stroke="#8fd4a0" stroke-width="1.5" stroke-opacity="0.5">
+          <animate attributeName="r" from="5" to="18" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-opacity" from="0.5" to="0" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="16" y="4" font-family="Inter,sans-serif" font-size="10" fill="#8fd4a0" opacity="0.75" font-weight="600">Tokyo</text>
+      </g>
+
+      <!-- Pin 2 — Dubai area (clay) -->
+      <g transform="translate(560,210)">
+        <circle cx="0" cy="0" r="14" fill="rgba(207,138,92,0.10)" />
+        <circle cx="0" cy="0" r="5"  fill="#cf8a5c" />
+        <circle cx="0" cy="0" r="9"  fill="none" stroke="#cf8a5c" stroke-width="1" stroke-opacity="0.4"/>
+        <text x="14" y="4" font-family="Inter,sans-serif" font-size="10" fill="#cf8a5c" opacity="0.75" font-weight="600">Dubai</text>
+      </g>
+
+      <!-- Pin 3 — Lisbon area (accent) -->
+      <g transform="translate(720,460)">
+        <circle cx="0" cy="0" r="14" fill="rgba(143,212,160,0.10)" />
+        <circle cx="0" cy="0" r="5"  fill="#8fd4a0" />
+        <circle cx="0" cy="0" r="9"  fill="none" stroke="#8fd4a0" stroke-width="1" stroke-opacity="0.4"/>
+        <circle cx="0" cy="0" r="5" fill="none" stroke="#8fd4a0" stroke-width="1.5" stroke-opacity="0.5">
+          <animate attributeName="r" from="5" to="18" dur="2.4s" begin="1s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-opacity" from="0.5" to="0" dur="2.4s" begin="1s" repeatCount="indefinite"/>
+        </circle>
+        <text x="-50" y="-12" font-family="Inter,sans-serif" font-size="10" fill="#8fd4a0" opacity="0.75" font-weight="600">Lisbon</text>
+      </g>
+
+      <!-- Small plane marker along path (mid-route) -->
+      <text x="368" y="150" font-size="14" fill="rgba(143,212,160,0.6)" transform="rotate(-22, 368, 150)">✈</text>
+    </svg>
+
+    <!-- Top heading content -->
+    <div class="illus-top">
+      <h2 class="illus-heading">Where next?</h2>
+      <p class="illus-sub">
+        Answer three questions and our AI maps out every day — accommodation,
+        transport, food, and hidden gems included.
+      </p>
+    </div>
+
+    <!-- Bottom block: stats + chips -->
+    <div>
+      <!-- Stat cards -->
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-card-value stat-accent">2,400+</div>
+          <div class="stat-card-label">Trips planned<br>this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-value stat-clay">4.8 ★</div>
+          <div class="stat-card-label">Average<br>trip rating</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-value">12 min</div>
+          <div class="stat-card-label">Median<br>planning time</div>
+        </div>
+      </div>
+
+      <!-- Chips label + row -->
+      <div class="chips-label">Popular destinations</div>
+      <div class="chips-row">
+        <span class="chip"><span class="chip-dot" style="background:#8fd4a0;"></span>Bali</span>
+        <span class="chip"><span class="chip-dot" style="background:#cf8a5c;"></span>Kyoto</span>
+        <span class="chip"><span class="chip-dot" style="background:#8fd4a0;"></span>Lisbon</span>
+        <span class="chip"><span class="chip-dot" style="background:#cf8a5c;"></span>Queenstown</span>
+        <span class="chip"><span class="chip-dot" style="background:#8fd4a0;"></span>Santorini</span>
+        <span class="chip"><span class="chip-dot" style="background:#cf8a5c;"></span>Medellín</span>
+        <span class="chip"><span class="chip-dot" style="background:#8fd4a0;"></span>Tbilisi</span>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+
+<script>
+  function selectStyle(btn) {
+    btn.closest('.seg-wrap').querySelectorAll('.seg-btn').forEach(b => {
+      b.classList.remove('seg-btn--active');
+    });
+    btn.classList.add('seg-btn--active');
+  }
+</script>
+
+</body>
+</html>

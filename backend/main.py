@@ -5,15 +5,25 @@ from pydantic import BaseModel, EmailStr
 from jose import jwt, JWTError
 from models.trip import Trip
 from models.users import User
+from models.conversation import Conversation  # noqa: F401 — needed for init_db
+from models.message import Message            # noqa: F401 — needed for init_db
 from database import SessionLocal, init_db
 from services.trip_service import (
     calculate_daily_budget,
     get_trip_category,
     get_transportation_recommendation,
 )
-from services.bedrock_service import get_travel_recommendation, get_food_recommendation
+from services.bedrock_service import get_travel_recommendation, get_food_recommendation, get_trip_summary
 from services.auth_service import hash_password, verify_password, create_access_token, SECRET_KEY, ALGORITHM
 from services.kb_service import ask_knowledge_base
+from services.chat_service import (
+    create_conversation,
+    list_conversations,
+    get_conversation_or_404,
+    rename_conversation,
+    get_messages,
+    send_message,
+)
 app = FastAPI()
 
 app.add_middleware(
@@ -180,6 +190,11 @@ def create_trip(request: TripRequest, current_user: User = Depends(get_current_u
             budget       = request.budget,
             travel_style = request.travel_style,
         )
+        trip_summary = get_trip_summary(
+            destination  = request.destination,
+            days         = request.days,
+            travel_style = request.travel_style,
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -192,6 +207,7 @@ def create_trip(request: TripRequest, current_user: User = Depends(get_current_u
         travel_style              = request.travel_style,
         ai_recommendation         = ai_recommendation,
         local_food_recommendation = local_food_recommendation,
+        summary                   = trip_summary,
         user_id                   = current_user.id,
     )
 
@@ -210,6 +226,7 @@ def create_trip(request: TripRequest, current_user: User = Depends(get_current_u
         "recommendation_transportation": transportation,
         "ai_recommendation":             trip.ai_recommendation,
         "local_food_recommendation":     trip.local_food_recommendation,
+        "summary":                       trip.summary,
     }
 
 
@@ -330,3 +347,96 @@ def ask_endpoint(request: QuestionRequest):
         "question": request.question,
         "answer": answer
     }
+
+
+# ── Conversation Schemas ────────────────────────────────────────────────────
+
+class CreateConversationRequest(BaseModel):
+    title: str = "New Conversation"
+
+
+class SendMessageRequest(BaseModel):
+    content: str
+
+
+class RenameConversationRequest(BaseModel):
+    title: str
+
+
+# ── Conversation Endpoints ──────────────────────────────────────────────────
+
+# POST /api/v1/conversations — buat conversation baru
+@app.post("/api/v1/conversations", status_code=201)
+def create_conversation_endpoint(
+    request: CreateConversationRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db   = SessionLocal()
+    conv = create_conversation(db, user_id=current_user.id, title=request.title)
+    db.close()
+    return {"conversation_id": conv.id, "title": conv.title}
+
+
+# GET /api/v1/conversations — list semua conversation milik user
+@app.get("/api/v1/conversations")
+def list_conversations_endpoint(current_user: User = Depends(get_current_user)):
+    db    = SessionLocal()
+    convs = list_conversations(db, user_id=current_user.id)
+    result = [
+        {
+            "id":         c.id,
+            "title":      c.title,
+            "created_at": c.created_at,
+        }
+        for c in convs
+    ]
+    db.close()
+    return result
+
+
+# POST /api/v1/conversations/{conversation_id}/messages — kirim pesan, terima jawaban AI
+@app.post("/api/v1/conversations/{conversation_id}/messages")
+def send_message_endpoint(
+    conversation_id: int,
+    request: SendMessageRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db     = SessionLocal()
+    result = send_message(db, conversation_id=conversation_id, user_id=current_user.id, content=request.content)
+    db.close()
+    return result
+
+
+# GET /api/v1/conversations/{conversation_id}/messages — ambil history messages
+@app.get("/api/v1/conversations/{conversation_id}/messages")
+def get_messages_endpoint(
+    conversation_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    db   = SessionLocal()
+    msgs = get_messages(db, conversation_id=conversation_id, user_id=current_user.id)
+    result = [
+        {
+            "id":              m.id,
+            "conversation_id": m.conversation_id,
+            "role":            m.role,
+            "content":         m.content,
+            "created_at":      m.created_at,
+        }
+        for m in msgs
+    ]
+    db.close()
+    return result
+
+
+# PATCH /api/v1/conversations/{conversation_id} — rename title conversation
+@app.patch("/api/v1/conversations/{conversation_id}")
+def rename_conversation_endpoint(
+    conversation_id: int,
+    request: RenameConversationRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db   = SessionLocal()
+    conv = rename_conversation(db, conversation_id=conversation_id, user_id=current_user.id, title=request.title)
+    db.close()
+    return {"conversation_id": conv.id, "title": conv.title}
