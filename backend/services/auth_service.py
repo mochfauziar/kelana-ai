@@ -8,7 +8,13 @@ from jose import jwt
 load_dotenv()
 
 # ── JWT config ─────────────────────────────────────────────────────────────
-SECRET_KEY: str = os.getenv("SECRET_KEY", "changeme-secret-key")
+_secret = os.getenv("SECRET_KEY")
+if not _secret or len(_secret) < 32:
+    raise RuntimeError(
+        "SECRET_KEY environment variable must be set and at least 32 characters long. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
+SECRET_KEY: str = _secret
 ALGORITHM:  str = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 jam
 

@@ -10,8 +10,9 @@ import {
   getMessages,
   renameConversation,
 } from "@/services/chatServices";
-import { getUser, getToken, clearSession, type AuthUser } from "@/services/authServices";
+import { clearSession, type AuthUser } from "@/services/authServices";
 import type { Conversation, Message } from "@/types/chat";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,7 @@ function ConversationItem({
 
 export default function ChatPage() {
   const router = useRouter();
+  const { user: guardUser, ready } = useAuthGuard();
 
   const [user,                setUser]                = useState<AuthUser | null>(null);
   const [conversations,       setConversations]       = useState<Conversation[]>([]);
@@ -207,12 +209,8 @@ export default function ChatPage() {
 
   // ── Auth guard ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!getToken()) {
-      router.push("/login");
-      return;
-    }
-    setUser(getUser());
-  }, [router]);
+    if (ready) setUser(guardUser);
+  }, [ready, guardUser]);
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -233,8 +231,8 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (getToken()) fetchConversations();
-  }, [fetchConversations]);
+    if (ready) fetchConversations();
+  }, [fetchConversations, ready]);
 
   // ── Select a conversation ──────────────────────────────────────────────────
   async function selectConversation(id: number) {
@@ -348,6 +346,8 @@ export default function ChatPage() {
   }
 
   const canSend = input.trim().length > 0 && !loading && activeId !== null;
+
+  if (!ready) return null;
 
   // ─────────────────────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { listTrips, deleteTrip, type TripSummary } from "@/services/tripServices";
 import TripCard from "@/components/TripCard";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 const TRAVEL_STYLES = ["All", "Budget", "Standard", "Luxury"];
 
@@ -275,6 +276,8 @@ function EmptySearch({ query, style }: { query: string; style: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TripsPage() {
+  const { ready } = useAuthGuard();
+
   const [trips, setTrips]       = useState<TripSummary[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -305,8 +308,8 @@ export default function TripsPage() {
   }
 
   useEffect(() => {
-    fetchTrips();
-  }, []);
+    if (ready) fetchTrips();
+  }, [ready]);
 
   // ── Client-side filter + sort ───────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -337,6 +340,8 @@ export default function TripsPage() {
     filtered.length === trips.length
       ? `${trips.length} trip${trips.length !== 1 ? "s" : ""}`
       : `Showing ${filtered.length} of ${trips.length} trip${trips.length !== 1 ? "s" : ""}`;
+
+  if (!ready) return null;
 
   return (
     <main

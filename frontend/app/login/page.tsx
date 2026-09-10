@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/authServices";
+import { useGuestGuard } from "@/lib/useAuthGuard";
 
 // ─── Eye Icon ─────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ function SocialButton({ icon, label }: { icon: React.ReactNode; label: string })
 
 export default function LoginPage() {
   const router = useRouter();
+  const { ready } = useGuestGuard();
 
   const [form, setForm]           = useState({ email: "", password: "" });
   const [showPassword, setShowPw] = useState(false);
@@ -78,6 +80,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden"

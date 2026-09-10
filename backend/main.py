@@ -3,13 +3,14 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from models.trip import Trip
 from models.users import User
 from models.conversation import Conversation  # noqa: F401 — needed for init_db
 from models.message import Message            # noqa: F401 — needed for init_db
-from database import SessionLocal, init_db
+from database import get_db, init_db
 from services.trip_service import (
     calculate_daily_budget,
     get_trip_category,
@@ -26,6 +27,7 @@ from services.chat_service import (
     get_messages,
     send_message,
 )
+
 load_dotenv()
 
 
@@ -51,7 +53,11 @@ init_db()
 
 bearer_scheme = HTTPBearer()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> User:
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
     """Decode JWT token dan kembalikan user yang sedang login."""
     token = credentials.credentials
     try:
@@ -62,17 +68,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    db = SessionLocal()
     user = db.query(User).filter(User.id == int(user_id)).first()
-    db.close()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
+
+# ── Auth Schemas ────────────────────────────────────────────────────────────
+
 class RegisterRequest(BaseModel):
-    name:     str
+    name:     str   = Field(min_length=1, max_length=100)
     email:    EmailStr
-    password: str
+    password: str   = Field(min_length=8, description="Minimum 8 characters")
 
 
 class LoginRequest(BaseModel):
@@ -80,13 +87,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+# ── Auth Endpoints ──────────────────────────────────────────────────────────
+
 # POST /api/v1/auth/register
 @app.post("/api/v1/auth/register", status_code=201)
-def register(request: RegisterRequest):
-    db = SessionLocal()
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == request.email).first()
     if existing:
-        db.close()
         raise HTTPException(status_code=409, detail="Email already registered")
 
     user = User(
@@ -97,7 +104,6 @@ def register(request: RegisterRequest):
     db.add(user)
     db.commit()
     db.refresh(user)
-    db.close()
 
     return {
         "message": "User registered successfully",
@@ -112,22 +118,16 @@ def register(request: RegisterRequest):
 
 # POST /api/v1/auth/login
 @app.post("/api/v1/auth/login")
-def login(request: LoginRequest):
-    db = SessionLocal()
+def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
 
     if not user:
-        db.close()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Verifikasi password sebelum tutup session
     try:
         password_valid = verify_password(request.password, user.password_hash)
     except Exception as exc:
-        db.close()
         raise HTTPException(status_code=500, detail=f"Password verify error: {exc}")
-
-    db.close()
 
     if not password_valid:
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -147,23 +147,26 @@ def login(request: LoginRequest):
 
 # GET /api/v1/auth/me — data user yang sedang login
 @app.get("/api/v1/auth/me")
-def get_me(current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     total_trips = db.query(Trip).filter(Trip.user_id == current_user.id).count()
-    db.close()
     return {
-        "id":                   current_user.id,
-        "name":                 current_user.name,
-        "email":                current_user.email,
-        "created_at":           current_user.created_at,
+        "id":                    current_user.id,
+        "name":                  current_user.name,
+        "email":                 current_user.email,
+        "created_at":            current_user.created_at,
         "total_trips_generated": total_trips,
     }
 
 
+# ── Utility Endpoints ───────────────────────────────────────────────────────
+
 # GET /
 @app.get("/")
 def home():
-    return {"message": "Welcome to KelanaAI", "name": "Moch Fauzi"}
+    return {"message": "Welcome to KelanaAI"}
 
 
 # GET /health
@@ -172,21 +175,41 @@ def health():
     return {"status": "OK"}
 
 
-class TripRequest(BaseModel):
-    destination: str
-    days: int
-    budget: float
-    travel_style: str = "Standard"
+# ── Trip Schemas ────────────────────────────────────────────────────────────
 
+class TripRequest(BaseModel):
+    destination:  str   = Field(min_length=1, max_length=100)
+    days:         int   = Field(ge=1, le=365)
+    budget:       float = Field(gt=0, le=1_000_000)
+    travel_style: str   = "Standard"
+
+
+class TripUpdateRequest(BaseModel):
+    destination: str | None = None
+    days:        int | None = None
+    budget:      float | None = None
+
+
+class RecommendationRequest(BaseModel):
+    destination:  str   = Field(min_length=1, max_length=100)
+    days:         int   = Field(ge=1, le=365)
+    budget:       float = Field(gt=0, le=1_000_000)
+    travel_style: str
+
+
+# ── Trip Endpoints ──────────────────────────────────────────────────────────
 
 # POST /api/v1/trips — buat trip baru dan simpan ke DB
 @app.post("/api/v1/trips")
-def create_trip(request: TripRequest, current_user: User = Depends(get_current_user)):
+def create_trip(
+    request: TripRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     daily_budget   = calculate_daily_budget(request.budget, request.days)
     category       = get_trip_category(request.budget)
     transportation = get_transportation_recommendation(category)
 
-    # get AI recommendation from Bedrock
     try:
         ai_recommendation = get_travel_recommendation(
             days         = request.days,
@@ -221,11 +244,9 @@ def create_trip(request: TripRequest, current_user: User = Depends(get_current_u
         user_id                   = current_user.id,
     )
 
-    db = SessionLocal()
     db.add(trip)
     db.commit()
     db.refresh(trip)
-    db.close()
 
     return {
         "id":                            trip.id,
@@ -242,41 +263,38 @@ def create_trip(request: TripRequest, current_user: User = Depends(get_current_u
 
 # GET /api/v1/trips — ambil trips milik user yang login
 @app.get("/api/v1/trips")
-def list_trips(current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    trips = db.query(Trip).filter(Trip.user_id == current_user.id).all()
-    db.close()
-    return trips
+def list_trips(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return db.query(Trip).filter(Trip.user_id == current_user.id).all()
 
 
 # GET /api/v1/trips/{trip_id} — ambil trip by id (hanya milik user sendiri)
 @app.get("/api/v1/trips/{trip_id}")
-def get_trip(trip_id: int, current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
+def get_trip(
+    trip_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
-    db.close()
     if trip is None:
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
     return trip
 
 
-class TripUpdateRequest(BaseModel):
-    destination: str | None = None
-    days: int | None = None
-    budget: float | None = None
-
-
 # PUT /api/v1/trips/{trip_id} — update trip by id
 @app.put("/api/v1/trips/{trip_id}")
-def update_trip(trip_id: int, request: TripUpdateRequest, current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
+def update_trip(
+    trip_id: int,
+    request: TripUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
-
     if trip is None:
-        db.close()
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
 
-    # update field yang dikirim saja, field lain tetap
     if request.destination is not None:
         trip.destination = request.destination
     if request.days is not None:
@@ -284,78 +302,74 @@ def update_trip(trip_id: int, request: TripUpdateRequest, current_user: User = D
     if request.budget is not None:
         trip.budget = request.budget
 
-    # recalculate derived fields
     trip.daily_budget = calculate_daily_budget(trip.budget, trip.days)
     trip.category     = get_trip_category(trip.budget)
 
     db.commit()
     db.refresh(trip)
-    db.close()
     return trip
 
 
-class RecommendationRequest(BaseModel):
-    destination: str
-    days: int
-    budget: float
-    travel_style: str
-
-
-# POST /api/v1/trips/recommend — get AI travel recommendation
+# POST /api/v1/trips/recommend — get AI travel recommendation (auth required)
 @app.post("/api/v1/trips/recommend")
-def recommend_trip(request: RecommendationRequest):
+def recommend_trip(
+    request: RecommendationRequest,
+    current_user: User = Depends(get_current_user),  # noqa: ARG001 — auth guard
+    db: Session = Depends(get_db),
+):
     category = get_trip_category(request.budget)
     try:
         recommendation = get_travel_recommendation(
-            days=request.days,
-            destination=request.destination,
-            budget=request.budget,
-            travel_style=request.travel_style,
+            days         = request.days,
+            destination  = request.destination,
+            budget       = request.budget,
+            travel_style = request.travel_style,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
     return {
-        "destination":      request.destination,
-        "days":             request.days,
-        "budget":           request.budget,
-        "travel_style":     request.travel_style,
-        "category":         category,
-        "recommendation":   recommendation,
+        "destination":    request.destination,
+        "days":           request.days,
+        "budget":         request.budget,
+        "travel_style":   request.travel_style,
+        "category":       category,
+        "recommendation": recommendation,
     }
 
 
 # DELETE /api/v1/trips/{trip_id} — hapus trip by id
 @app.delete("/api/v1/trips/{trip_id}")
-def delete_trip(trip_id: int, current_user: User = Depends(get_current_user)):
-    db = SessionLocal()
+def delete_trip(
+    trip_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
-
     if trip is None:
-        db.close()
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
 
     db.delete(trip)
     db.commit()
-    db.close()
     return {"message": f"Trip with id {trip_id} deleted successfully"}
 
 
+# ── Ask / Knowledge Base ────────────────────────────────────────────────────
+
 class QuestionRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=1000)
 
 
-# POST /api/v1/ask — tanya ke Knowledge Base
+# POST /api/v1/ask — tanya ke Knowledge Base (auth required)
 @app.post("/api/v1/ask")
-def ask_endpoint(request: QuestionRequest):
-    # 1. Send question to Knowledge Base
-    answer = ask_knowledge_base(
-        request.question
-    )
-    # 2. Return grounded answer to frontend
+def ask_endpoint(
+    request: QuestionRequest,
+    current_user: User = Depends(get_current_user),  # noqa: ARG001 — auth guard
+):
+    answer = ask_knowledge_base(request.question)
     return {
         "question": request.question,
-        "answer": answer
+        "answer":   answer,
     }
 
 
@@ -380,19 +394,20 @@ class RenameConversationRequest(BaseModel):
 def create_conversation_endpoint(
     request: CreateConversationRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    db   = SessionLocal()
     conv = create_conversation(db, user_id=current_user.id, title=request.title)
-    db.close()
     return {"conversation_id": conv.id, "title": conv.title}
 
 
 # GET /api/v1/conversations — list semua conversation milik user
 @app.get("/api/v1/conversations")
-def list_conversations_endpoint(current_user: User = Depends(get_current_user)):
-    db    = SessionLocal()
+def list_conversations_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     convs = list_conversations(db, user_id=current_user.id)
-    result = [
+    return [
         {
             "id":         c.id,
             "title":      c.title,
@@ -400,8 +415,6 @@ def list_conversations_endpoint(current_user: User = Depends(get_current_user)):
         }
         for c in convs
     ]
-    db.close()
-    return result
 
 
 # POST /api/v1/conversations/{conversation_id}/messages — kirim pesan, terima jawaban AI
@@ -410,11 +423,9 @@ def send_message_endpoint(
     conversation_id: int,
     request: SendMessageRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    db     = SessionLocal()
-    result = send_message(db, conversation_id=conversation_id, user_id=current_user.id, content=request.content)
-    db.close()
-    return result
+    return send_message(db, conversation_id=conversation_id, user_id=current_user.id, content=request.content)
 
 
 # GET /api/v1/conversations/{conversation_id}/messages — ambil history messages
@@ -422,10 +433,10 @@ def send_message_endpoint(
 def get_messages_endpoint(
     conversation_id: int,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    db   = SessionLocal()
     msgs = get_messages(db, conversation_id=conversation_id, user_id=current_user.id)
-    result = [
+    return [
         {
             "id":              m.id,
             "conversation_id": m.conversation_id,
@@ -435,8 +446,6 @@ def get_messages_endpoint(
         }
         for m in msgs
     ]
-    db.close()
-    return result
 
 
 # PATCH /api/v1/conversations/{conversation_id} — rename title conversation
@@ -445,8 +454,7 @@ def rename_conversation_endpoint(
     conversation_id: int,
     request: RenameConversationRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    db   = SessionLocal()
     conv = rename_conversation(db, conversation_id=conversation_id, user_id=current_user.id, title=request.title)
-    db.close()
     return {"conversation_id": conv.id, "title": conv.title}

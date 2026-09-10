@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getMe, clearSession, type MeResponse } from "@/services/authServices";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -33,24 +34,22 @@ function Skeleton({ className }: { className?: string }) {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { ready } = useAuthGuard();
 
   const [profile, setProfile] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     getMe()
       .then(setProfile)
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Failed to load profile";
-        if (message === "Not authenticated" || message.includes("401")) {
-          router.push("/login");
-        } else {
-          setError(message);
-        }
+        setError(message);
       })
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [ready]);
 
   function handleLogout() {
     clearSession();
@@ -62,6 +61,8 @@ export default function ProfilePage() {
       day: "numeric", month: "long", year: "numeric",
     }).format(new Date(iso));
   }
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen flex flex-col"

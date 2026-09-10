@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { askKnowledgeBase } from "@/services/tripServices";
-import { getUser, clearSession, type AuthUser } from "@/services/authServices";
+import { clearSession, type AuthUser } from "@/services/authServices";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ function Bubble({ msg }: { msg: Message }) {
 
 export default function AskPage() {
   const router = useRouter();
+  const { user: guardUser, ready } = useAuthGuard();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -168,8 +170,8 @@ export default function AskPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setUser(getUser());
-  }, []);
+    if (ready) setUser(guardUser);
+  }, [ready, guardUser]);
 
   // Auto-scroll ke pesan terbaru
   useEffect(() => {
@@ -224,6 +226,8 @@ export default function AskPage() {
   }
 
   const isEmpty = messages.length === 0;
+
+  if (!ready) return null;
 
   return (
     <>

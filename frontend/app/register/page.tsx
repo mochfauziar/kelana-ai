@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { register } from "@/services/authServices";
+import { useGuestGuard } from "@/lib/useAuthGuard";
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -20,6 +21,7 @@ function EyeIcon({ open }: { open: boolean }) {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { ready } = useGuestGuard();
 
   const [form, setForm]           = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPw] = useState(false);
@@ -44,6 +46,8 @@ export default function RegisterPage() {
       setLoading(false);
     }
   }
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden"
