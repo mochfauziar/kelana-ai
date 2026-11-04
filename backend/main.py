@@ -35,9 +35,22 @@ app = FastAPI()
 
 cors_origins = [
     origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,https://kelana-ai-two.vercel.app"
+    ).split(",")
     if origin.strip()
 ]
+
+# Tambahkan middleware CORS setelah instansiasi app:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://kelana-.*-mochfauziar-gmailcoms-projects\.vercel\.app",  # Izinkan semua Vercel Preview deployment
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(
     CORSMiddleware,
