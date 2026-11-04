@@ -8,7 +8,7 @@ Reference: https://ai.google.dev/gemini-api/docs/text-generation
 
 Configuration loaded from .env:
     - GEMINI_API_KEY : Google Gemini API key (from Google AI Studio)
-    - GEMINI_MODEL   : Gemini model ID (e.g. gemini-2.5-flash)
+    - GEMINI_MODEL   : Gemini model ID (e.g. gemini-3.8-flash)
 """
 
 import os
@@ -23,7 +23,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 GEMINI_ENDPOINT = (
     f"https://generativelanguage.googleapis.com/v1beta"
