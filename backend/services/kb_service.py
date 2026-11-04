@@ -1,83 +1,129 @@
-import boto3
+"""
+kb_service.py
+-------------
+Handles knowledge-base queries using Google Gemini with Google Search
+grounding.
+
+This replaces the previous AWS Bedrock Knowledge Base (boto3 RAG) approach.
+Instead of retrieving from a custom vector database, Gemini grounds its
+answers using Google Search and returns up-to-date information with
+verifiable source citations.
+
+Reference: https://ai.google.dev/gemini-api/docs/grounding
+
+Configuration loaded from .env:
+  - GEMINI_API_KEY : Google Gemini API key
+  - GEMINI_MODEL   : Gemini model ID (e.g. gemini-2.5-flash)
+"""
+
 import os
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Bedrock Knowledge Base
-kb_client = boto3.client(
-    "bedrock-agent-runtime",
-    region_name=os.getenv("AWS_REGION"),
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+GEMINI_ENDPOINT = (
+    f"https://generativelanguage.googleapis.com/v1beta"
+    f"/models/{GEMINI_MODEL}:generateContent"
 )
 
-# Bedrock Runtime untuk generate answer
-model_client = boto3.client(
-    "bedrock-runtime",
-    region_name=os.getenv("AWS_REGION"),
-)
 
-KB_ID = os.getenv("KNOWLEDGE_BASE_ID")
-MODEL_ID = os.getenv("KNOWLEDGE_BASE_MODEL_ARN")
-
-
-def ask_knowledge_base(question: str):
-
-    # 1. Retrieve relevant information from Knowledge Base
-    response = kb_client.retrieve(
-        knowledgeBaseId=KB_ID,
-        retrievalQuery={
-            "text": question
-        }
-    )
-
-    results = response.get("retrievalResults", [])
-
-    if not results:
-        return "Maaf, saya tidak menemukan informasi yang relevan."
+def _get_headers() -> dict:
+    """Return HTTP headers required for Gemini API key authentication."""
+    if not GEMINI_API_KEY:
+        raise ValueError(
+            "GEMINI_API_KEY is not set. Please add it to your .env file."
+        )
+    return {
+        "x-goog-api-key": GEMINI_API_KEY,
+        "Content-Type":   "application/json",
+    }
 
 
-    # 2. Combine retrieved documents into context
-    context = "\n\n".join(
-        result.get("content", {}).get("text", "")
-        for result in results
-    )
+def ask_knowledge_base(question: str) -> str:
+    """
+    Answer a travel question using Gemini with Google Search grounding.
 
+    Gemini searches the web for up-to-date information and grounds its
+    answer in the search results. The response includes grounding metadata
+    (source URLs, search queries) in candidates[0].groundingMetadata.
 
-    # 3. Create prompt
-    prompt = f"""
-You are a helpful travel assistant.
+    Parameters
+    ----------
+    question : The user's travel question.
 
-Answer the user's question based only on the information provided
-in the context below.
+    Returns
+    -------
+    str : The grounded answer text, or a fallback message if no answer.
 
-If the answer cannot be found in the context, say that you don't
-have enough information.
+    Raises
+    ------
+    RuntimeError : If the Gemini API call fails.
+    """
+    prompt = f"""You are a helpful travel assistant.
 
-Context:
-{context}
+Answer the user's question using information from Google Search.
+Provide accurate, up-to-date, and helpful information for travellers.
+If you cannot find relevant information, say that you don't have
+enough information.
 
 Question:
 {question}
 
-Answer:
-"""
+Answer:"""
 
-
-    # 4. Generate answer using Bedrock model
-    response = model_client.converse(
-        modelId=MODEL_ID,
-        messages=[
+    payload = {
+        "contents": [
             {
                 "role": "user",
-                "content": [
-                    {
-                        "text": prompt
-                    }
-                ]
+                "parts": [{"text": prompt}],
             }
-        ]
-    )
+        ],
+        # Google Search grounding — Gemini will search the web for
+        # up-to-date information and cite its sources.
+        "tools": [{"google_search": {}}],
+        "generationConfig": {
+            "maxOutputTokens": 8192,
+            "temperature": 0.7,
+            "topP": 0.9,
+        },
+    }
 
+    try:
+        response = requests.post(
+            url     = GEMINI_ENDPOINT,
+            headers = _get_headers(),
+            json    = payload,
+            timeout = 60,
+        )
+        response.raise_for_status()
 
-    # 5. Return generated answer
-    return response["output"]["message"]["content"][0]["text"]
+        data = response.json()
+        candidates = data.get("candidates", [])
+
+        if not candidates:
+            return "Maaf, saya tidak menemukan informasi yang relevan."
+
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+        text = " ".join(part["text"] for part in parts if "text" in part)
+
+        if not text.strip():
+            return "Maaf, saya tidak menemukan informasi yang relevan."
+
+        return text.strip()
+
+    except requests.HTTPError as exc:
+        raise RuntimeError(
+            f"Gemini API returned {exc.response.status_code}: {exc.response.text}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(f"Gemini API call failed: {exc}") from exc

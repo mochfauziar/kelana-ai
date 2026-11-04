@@ -16,7 +16,7 @@ from services.trip_service import (
     get_trip_category,
     get_transportation_recommendation,
 )
-from services.bedrock_service import get_travel_recommendation, get_food_recommendation, get_trip_summary
+from services.gemini_service import get_travel_recommendation, get_food_recommendation, get_trip_summary
 from services.auth_service import hash_password, verify_password, create_access_token, SECRET_KEY, ALGORITHM
 from services.kb_service import ask_knowledge_base
 from services.chat_service import (
@@ -366,7 +366,10 @@ def ask_endpoint(
     request: QuestionRequest,
     current_user: User = Depends(get_current_user),  # noqa: ARG001 — auth guard
 ):
-    answer = ask_knowledge_base(request.question)
+    try:
+        answer = ask_knowledge_base(request.question)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     return {
         "question": request.question,
         "answer":   answer,

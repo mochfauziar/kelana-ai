@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from models.conversation import Conversation
 from models.message import Message
-from services.bedrock_service import chat_with_history
+from services.gemini_service import chat_with_history
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ def send_message(db: Session, conversation_id: int, user_id: int, content: str) 
     2. Count existing messages (used for auto-title check).
     3. Persist the user message.
     4. Load the full history (including the new user message).
-    5. Call Bedrock with the full history.
+    5. Call Gemini with the full history.
     6. Persist the assistant reply.
     7. Auto-generate a title from the first user message if applicable.
     8. Commit everything and return the result.
@@ -130,7 +130,7 @@ def send_message(db: Session, conversation_id: int, user_id: int, content: str) 
         .all()
     )
 
-    # 3. Build Bedrock payload and call
+    # 3. Build Gemini payload and call
     messages_payload = [{"role": m.role, "content": m.content} for m in history]
     try:
         ai_text = chat_with_history(messages_payload)

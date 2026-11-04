@@ -1,18 +1,16 @@
 """
-bedrock_service.py
-------------------
-Handles all AWS Bedrock interactions using Bedrock API key (bearer token auth).
+gemini_service.py
+-----------------
+Handles all Google Gemini AI interactions using the Gemini REST API
+(generateContent endpoint) with API key authentication.
 
-Bedrock API keys use HTTP Authorization header, not SigV4 signing.
-Reference: https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html
+Reference: https://ai.google.dev/gemini-api/docs/text-generation
 
 Configuration loaded from .env:
-  - AWS_BEARER_TOKEN_BEDROCK : Bedrock API key (starts with ABSK...)
-  - AWS_REGION               : AWS region (e.g. ap-southeast-2)
-  - MODEL_ID                 : Bedrock model ID (e.g. amazon.nova-lite-v1:0)
+  - GEMINI_API_KEY : Google Gemini API key (from Google AI Studio)
+  - GEMINI_MODEL   : Gemini model ID (e.g. gemini-2.5-flash)
 """
 
-import json
 import os
 
 import requests
@@ -24,17 +22,16 @@ load_dotenv()
 # Configuration
 # ---------------------------------------------------------------------------
 
-AWS_BEARER_TOKEN = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
-AWS_REGION       = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID         = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-BEDROCK_ENDPOINT = (
-    f"https://bedrock-runtime.{AWS_REGION}.amazonaws.com"
-    f"/model/{MODEL_ID}/converse"
+GEMINI_ENDPOINT = (
+    f"https://generativelanguage.googleapis.com/v1beta"
+    f"/models/{GEMINI_MODEL}:generateContent"
 )
 
 # ---------------------------------------------------------------------------
-# Prompt template
+# Prompt templates
 # ---------------------------------------------------------------------------
 
 TRAVEL_PROMPT_TEMPLATE = """You are an experienced travel planner.
@@ -69,19 +66,51 @@ After the list, add a short paragraph (2-3 sentences) titled **Dining Tips** wit
 # Client initialisation
 # ---------------------------------------------------------------------------
 
-def get_bedrock_headers() -> dict:
+def get_gemini_headers() -> dict:
     """
-    Return HTTP headers required for Bedrock API key authentication.
+    Return HTTP headers required for Gemini API key authentication.
     """
-    if not AWS_BEARER_TOKEN:
+    if not GEMINI_API_KEY:
         raise ValueError(
-            "AWS_BEARER_TOKEN_BEDROCK is not set. "
+            "GEMINI_API_KEY is not set. "
             "Please add it to your .env file."
         )
     return {
-        "Authorization": f"Bearer {AWS_BEARER_TOKEN}",
-        "Content-Type":  "application/json",
+        "x-goog-api-key": GEMINI_API_KEY,
+        "Content-Type":   "application/json",
     }
+
+
+def _parse_response(data: dict) -> str:
+    """
+    Extract text from a Gemini generateContent response.
+
+    Gemini returns candidates[0].content.parts[*].text — this helper
+    joins all text parts into a single string.
+
+    Raises RuntimeError if the response is empty, blocked, or malformed.
+    """
+    candidates = data.get("candidates", [])
+    if not candidates:
+        # Check if the prompt was blocked
+        block_reason = data.get("promptFeedback", {}).get("blockReason")
+        if block_reason:
+            raise RuntimeError(f"Gemini request was blocked: {block_reason}")
+        raise RuntimeError("Gemini API returned no candidates")
+
+    candidate = candidates[0]
+    finish_reason = candidate.get("finishReason", "")
+
+    content = candidate.get("content", {})
+    parts = content.get("parts", [])
+    text = " ".join(part["text"] for part in parts if "text" in part)
+
+    if not text.strip():
+        if finish_reason == "SAFETY":
+            raise RuntimeError("Gemini response was blocked by safety filters")
+        raise RuntimeError(f"Gemini returned empty response (finishReason: {finish_reason})")
+
+    return text.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +124,7 @@ def get_travel_recommendation(
     travel_style: str,
 ) -> str:
     """
-    Send a travel-planning request to AWS Bedrock and return the
+    Send a travel-planning request to Google Gemini and return the
     AI-generated itinerary as a string.
 
     Parameters
@@ -111,7 +140,7 @@ def get_travel_recommendation(
 
     Raises
     ------
-    RuntimeError  : If the Bedrock API call fails.
+    RuntimeError  : If the Gemini API call fails.
     """
     prompt = TRAVEL_PROMPT_TEMPLATE.format(
         days=days,
@@ -121,14 +150,14 @@ def get_travel_recommendation(
     )
 
     payload = {
-        "messages": [
+        "contents": [
             {
                 "role": "user",
-                "content": [{"text": prompt}],
+                "parts": [{"text": prompt}],
             }
         ],
-        "inferenceConfig": {
-            "maxTokens": 2048,
+        "generationConfig": {
+            "maxOutputTokens": 8192,
             "temperature": 0.7,
             "topP": 0.9,
         },
@@ -136,28 +165,21 @@ def get_travel_recommendation(
 
     try:
         response = requests.post(
-            url     = BEDROCK_ENDPOINT,
-            headers = get_bedrock_headers(),
+            url     = GEMINI_ENDPOINT,
+            headers = get_gemini_headers(),
             json    = payload,
             timeout = 60,
         )
         response.raise_for_status()
 
-        data           = response.json()
-        output_message = data["output"]["message"]
-        recommendation = " ".join(
-            block["text"]
-            for block in output_message["content"]
-            if "text" in block
-        )
-        return recommendation.strip()
+        return _parse_response(response.json())
 
     except requests.HTTPError as exc:
         raise RuntimeError(
-            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+            f"Gemini API returned {exc.response.status_code}: {exc.response.text}"
         ) from exc
     except Exception as exc:
-        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+        raise RuntimeError(f"Gemini API call failed: {exc}") from exc
 
 
 def get_food_recommendation(
@@ -167,7 +189,7 @@ def get_food_recommendation(
     travel_style: str,
 ) -> str:
     """
-    Send a local food recommendation request to AWS Bedrock and return
+    Send a local food recommendation request to Google Gemini and return
     the AI-generated food guide as a string.
 
     Parameters
@@ -183,7 +205,7 @@ def get_food_recommendation(
 
     Raises
     ------
-    RuntimeError  : If the Bedrock API call fails.
+    RuntimeError  : If the Gemini API call fails.
     """
     prompt = FOOD_PROMPT_TEMPLATE.format(
         destination=destination,
@@ -193,14 +215,14 @@ def get_food_recommendation(
     )
 
     payload = {
-        "messages": [
+        "contents": [
             {
                 "role": "user",
-                "content": [{"text": prompt}],
+                "parts": [{"text": prompt}],
             }
         ],
-        "inferenceConfig": {
-            "maxTokens": 1024,
+        "generationConfig": {
+            "maxOutputTokens": 8192,
             "temperature": 0.7,
             "topP": 0.9,
         },
@@ -208,28 +230,21 @@ def get_food_recommendation(
 
     try:
         response = requests.post(
-            url     = BEDROCK_ENDPOINT,
-            headers = get_bedrock_headers(),
+            url     = GEMINI_ENDPOINT,
+            headers = get_gemini_headers(),
             json    = payload,
             timeout = 60,
         )
         response.raise_for_status()
 
-        data           = response.json()
-        output_message = data["output"]["message"]
-        recommendation = " ".join(
-            block["text"]
-            for block in output_message["content"]
-            if "text" in block
-        )
-        return recommendation.strip()
+        return _parse_response(response.json())
 
     except requests.HTTPError as exc:
         raise RuntimeError(
-            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+            f"Gemini API returned {exc.response.status_code}: {exc.response.text}"
         ) from exc
     except Exception as exc:
-        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+        raise RuntimeError(f"Gemini API call failed: {exc}") from exc
 
 
 def get_trip_summary(
@@ -238,7 +253,7 @@ def get_trip_summary(
     travel_style: str,
 ) -> str:
     """
-    Generate a short one-line trip summary (≤12 words) using AWS Bedrock.
+    Generate a short one-line trip summary (≤12 words) using Google Gemini.
 
     Parameters
     ----------
@@ -252,7 +267,7 @@ def get_trip_summary(
 
     Raises
     ------
-    RuntimeError  : If the Bedrock API call fails.
+    RuntimeError  : If the Gemini API call fails.
     """
     prompt = SUMMARY_PROMPT_TEMPLATE.format(
         days=days,
@@ -261,14 +276,14 @@ def get_trip_summary(
     )
 
     payload = {
-        "messages": [
+        "contents": [
             {
                 "role": "user",
-                "content": [{"text": prompt}],
+                "parts": [{"text": prompt}],
             }
         ],
-        "inferenceConfig": {
-            "maxTokens": 64,
+        "generationConfig": {
+            "maxOutputTokens": 256,
             "temperature": 0.5,
             "topP": 0.9,
         },
@@ -276,32 +291,27 @@ def get_trip_summary(
 
     try:
         response = requests.post(
-            url     = BEDROCK_ENDPOINT,
-            headers = get_bedrock_headers(),
+            url     = GEMINI_ENDPOINT,
+            headers = get_gemini_headers(),
             json    = payload,
             timeout = 30,
         )
         response.raise_for_status()
 
-        data           = response.json()
-        output_message = data["output"]["message"]
-        summary = " ".join(
-            block["text"]
-            for block in output_message["content"]
-            if "text" in block
-        )
-        return summary.strip().strip('"').strip("'")
+        summary = _parse_response(response.json())
+        return summary.strip('"').strip("'")
 
     except requests.HTTPError as exc:
         raise RuntimeError(
-            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+            f"Gemini API returned {exc.response.status_code}: {exc.response.text}"
         ) from exc
     except Exception as exc:
-        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+        raise RuntimeError(f"Gemini API call failed: {exc}") from exc
+
 
 def chat_with_history(messages: list[dict]) -> str:
     """
-    Send a multi-turn conversation to AWS Bedrock Converse API.
+    Send a multi-turn conversation to Google Gemini.
 
     Parameters
     ----------
@@ -315,18 +325,26 @@ def chat_with_history(messages: list[dict]) -> str:
 
     Raises
     ------
-    RuntimeError : If the Bedrock API call fails.
+    RuntimeError : If the Gemini API call fails.
+
+    Note
+    ----
+    Gemini uses "model" as the assistant role name (not "assistant").
+    This function translates "assistant" → "model" automatically.
     """
+    contents = []
+    for msg in messages:
+        # Gemini uses "model" instead of "assistant"
+        role = "model" if msg["role"] == "assistant" else msg["role"]
+        contents.append({
+            "role": role,
+            "parts": [{"text": msg["content"]}],
+        })
+
     payload = {
-        "messages": [
-            {
-                "role": msg["role"],
-                "content": [{"text": msg["content"]}],
-            }
-            for msg in messages
-        ],
-        "inferenceConfig": {
-            "maxTokens": 2048,
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": 8192,
             "temperature": 0.7,
             "topP": 0.9,
         },
@@ -334,25 +352,18 @@ def chat_with_history(messages: list[dict]) -> str:
 
     try:
         response = requests.post(
-            url     = BEDROCK_ENDPOINT,
-            headers = get_bedrock_headers(),
+            url     = GEMINI_ENDPOINT,
+            headers = get_gemini_headers(),
             json    = payload,
             timeout = 60,
         )
         response.raise_for_status()
 
-        data           = response.json()
-        output_message = data["output"]["message"]
-        reply = " ".join(
-            block["text"]
-            for block in output_message["content"]
-            if "text" in block
-        )
-        return reply.strip()
+        return _parse_response(response.json())
 
     except requests.HTTPError as exc:
         raise RuntimeError(
-            f"Bedrock API returned {exc.response.status_code}: {exc.response.text}"
+            f"Gemini API returned {exc.response.status_code}: {exc.response.text}"
         ) from exc
     except Exception as exc:
-        raise RuntimeError(f"Bedrock API call failed: {exc}") from exc
+        raise RuntimeError(f"Gemini API call failed: {exc}") from exc
